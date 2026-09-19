@@ -10,12 +10,20 @@ project remains alpha.
 
 ### Added
 
+- Cloakspan logo, app icon, social preview, and brand usage guide.
+- `cloakspan` CLI alias alongside the existing `secure-ai-gateway` command.
+
 - First-public-release implementation plan and concise roadmap.
 - Contribution, conduct, support, issue, and pull-request guidance.
 - Safe example environment and Docker build-context exclusions.
 - Production startup validation for policy destinations and API keys.
 
 ### Changed
+
+- Public name changed to Cloakspan with worldwide positioning and explicit
+  country/language coverage boundaries. Existing deployment identifiers remain
+  compatible.
+- Offline demo uses neutral examples and includes payment-card tokenization.
 
 - Compose now uses production mode and requires operator-provided secrets and
   provider endpoints instead of a known API key and mock fallbacks.

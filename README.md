@@ -1,8 +1,13 @@
-# Secure AI Gateway
+<p align="left">
+  <img src="docs/assets/cloakspan-logo.svg" alt="Cloakspan" width="480">
+</p>
+
+# Cloakspan
 
 **Send context to the model. Keep identities local.**
 
-Secure AI Gateway sits between your app and an OpenAI-compatible model. It
+Cloakspan is a self-hosted privacy gateway for teams worldwide. It sits between
+your app and an OpenAI-compatible model,
 detects sensitive values, applies your policy, replaces approved values with
 scoped tokens, and restores only tokens created for the same request.
 
@@ -10,34 +15,21 @@ scoped tokens, and restores only tokens created for the same request.
 [![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2ea44f)](LICENSE)
 
-```text
-+------------------------------------------------------------------------------------+
-|                                 SECURE AI GATEWAY                                  |
-|                        send context. keep identities local.                        |
-+------------------------------------------------------------------------------------+
-
- YOUR APP                    LOCAL TRUST BOUNDARY                 AI MODEL
-
-+------------------+     +-----------------------------------+     +------------------+
-| alice@acme.lv    | --> | detect -> policy -> tokenize      | --> | <EMAIL:v1:...>   |
-| 120385-12342     |     | allow | transform | local | block |     | no raw identity  |
-| restored reply   | <-- | provenance check <- restore       | <-- | model response   |
-+------------------+     +-----------------------------------+     +------------------+
-
-                      restore only tokens minted for this request
-```
+Use it for customer support, internal assistants, and other text workflows
+where sensitive data needs a policy before it reaches a model. You choose the
+infrastructure, model endpoints, and handling rules.
 
 The offline demo prints the exact request seen by a deterministic mock provider
 and checks that the gateway refuses to restore a forged token.
 
-[![Secure AI Gateway proof-of-concept request flow](docs/assets/poc-schematic.svg)](docs/assets/poc-schematic.svg)
+[![Cloakspan proof-of-concept request flow](docs/assets/poc-schematic.svg)](docs/assets/poc-schematic.svg)
 
 ## Why it exists
 
 Plain redaction removes information the model needs. Predictable placeholders
 such as `<PERSON_1>` keep some structure, but they are easy to guess or replay.
 
-Secure AI Gateway mints typed HMAC tokens scoped to a tenant and conversation.
+Cloakspan mints typed HMAC tokens scoped to a tenant and conversation.
 Before restoration, it checks that each token came from the current request. A
 valid token from another request therefore stays opaque.
 
@@ -73,9 +65,10 @@ py -3 -m venv .venv
 
 If you have GNU Make, `make setup && make demo` runs the same path.
 
-The demo covers email tokenization, local routing for a Latvian personal code,
-credential blocking, a customer dictionary term, and a forged-token restoration
-attempt. It prints exactly what the provider received.
+The demo covers email and payment-card tokenization, credential blocking,
+a customer dictionary term, and a forged-token restoration attempt. It also
+shows a country-specific identifier routed locally using a synthetic Latvian
+personal code. It prints exactly what each provider received.
 
 ## Connect a client
 
@@ -96,7 +89,7 @@ client = OpenAI(
 
 reply = client.chat.completions.create(
     model="your-model",
-    messages=[{"role": "user", "content": "Email alice@acme.lv"}],
+    messages=[{"role": "user", "content": "Email alex@example.com"}],
 )
 ```
 
@@ -118,7 +111,8 @@ changing the egress or private-network settings.
 | Category | Included detectors |
 |---|---|
 | Personal and financial data | Email, IPv4, IBAN with mod-97, payment cards with Luhn |
-| Baltic identifiers | Latvian, Lithuanian, and Estonian personal codes with check digits; contextual Baltic phone numbers |
+| Country-specific identifiers | Latvian, Lithuanian, and Estonian personal codes; checksum validation where the format supports it |
+| Phone numbers | Contextual international E.164 numbers and national formats for Latvia, Lithuania, and Estonia |
 | Credentials | AWS keys, private keys, JWTs, OpenAI and Anthropic keys, GitHub and Slack tokens |
 | Customer data | Exact dictionary terms and reviewed custom regular expressions |
 | Optional NER | PERSON, ORG, LOCATION, and ADDRESS through a checksum-verified local model supplied by the operator |
@@ -127,6 +121,20 @@ Deterministic detectors work without model downloads. The evaluation harness
 reports precision and recall per entity and language against versioned synthetic
 corpora. The [evaluation report](docs/evaluation-report.md) lists the sample
 sizes, results, and coverage boundaries.
+
+### Global use, explicit coverage
+
+The gateway is not tied to a country or model host. Email, payment-card,
+credential, and customer-defined detection can be used across markets; IBAN
+detection applies where that banking standard is used. Country-specific
+identifiers need dedicated recognizers, and language-aware detection depends
+on your configured NER model.
+
+Built-in national ID coverage currently covers Latvia, Lithuania, and Estonia.
+Other national IDs are not detected out of the box. Validate the entity types,
+languages, and policies your deployment needs against representative data;
+the current synthetic evaluation is not evidence of worldwide detection
+coverage. Contributions for additional countries and languages are welcome.
 
 ## Security choices
 
@@ -169,6 +177,11 @@ vulnerability privately using [SECURITY.md](SECURITY.md); do not open a public
 issue with exploit details or real customer data.
 
 ## Project map
+
+Previously named **Secure AI Gateway**. The Python distribution, container
+names, `secure-ai-gateway` command, `SAG_*` settings, and `sgw_live_` key prefix
+retain their existing identifiers for compatibility. New installations also
+provide the `cloakspan` command. See the [brand assets](docs/brand.md).
 
 | Need | Start here |
 |---|---|

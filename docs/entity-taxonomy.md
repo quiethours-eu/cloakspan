@@ -55,10 +55,11 @@ protected by this tier.
 
 ## Tier 2 — National identifiers
 
-Directly identifying, and for regulated Baltic customers the identifiers most
-likely to attract supervisory attention. Default action is **route to the local
-model** rather than pseudonymise: the customer's argument to their regulator is
-much simpler if the value never left their infrastructure at all.
+National identifiers directly identify a person and may need stricter handling
+under an organisation's policy. Default action for the supported types is
+**route to the local model** rather than pseudonymise. Current built-in coverage
+is Latvia, Lithuania, and Estonia; this is a coverage boundary, not a geographic
+restriction on use of the gateway.
 
 | Entity | Severity | Detector | Conf. | Languages | Default | FP cost | Status |
 |---|---|---|---|---|---|---|---|

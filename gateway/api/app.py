@@ -127,7 +127,7 @@ def create_app(
             await app.state.pipeline.aclose_providers()
 
     app = FastAPI(
-        title="Secure AI Gateway",
+        title="Cloakspan",
         version=APP_VERSION,
         docs_url=None,  # No interactive docs by default: it is an
         redoc_url=None,  # unnecessary surface on a security appliance.

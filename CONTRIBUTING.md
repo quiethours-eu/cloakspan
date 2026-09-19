@@ -1,6 +1,6 @@
 # Contributing
 
-Secure AI Gateway is an alpha security project. Small, reviewable changes with
+Cloakspan is an alpha security project for teams worldwide. Small, reviewable changes with
 explicit failure behavior are preferred over broad feature additions.
 
 ## Before opening a pull request
@@ -56,6 +56,14 @@ A pull request should:
 Changes to authentication, policy, detection, transformation, restoration,
 vault, provider egress, audit, or release workflows are security-sensitive.
 Call that out explicitly in the pull request.
+
+## Countries and languages
+
+Recognizer contributions from any country are welcome. Cite an authoritative
+format specification, validate checksums where available, and include synthetic
+positive, negative, and boundary examples. Document supported formats and known
+ambiguities. Add evaluation cases before advertising support for a new entity
+or language; do not use real personal data in fixtures.
 
 ## Style
 

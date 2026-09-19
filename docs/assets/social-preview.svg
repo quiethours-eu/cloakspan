@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">Cloakspan — send context, keep identities local</title>
+  <desc id="desc">A self-hosted AI privacy gateway. A synthetic email becomes a scoped token before reaching the model.</desc>
+  <rect width="1280" height="640" fill="#102d40"/>
+  <g transform="translate(64 56) scale(.75)">
+    <path d="M86 27H48L28 47V81L48 101H86V85H55L44 74V54L55 43H86Z" fill="#f5f9fc"/>
+    <path d="M66 56H106V72H66Z" fill="#68c7f2"/>
+  </g>
+  <g font-family="Segoe UI, DejaVu Sans, sans-serif">
+    <text x="184" y="123" fill="#f5f9fc" font-size="58" font-weight="700" letter-spacing="-1.5">Cloakspan</text>
+    <text x="76" y="245" fill="#f5f9fc" font-size="64" font-weight="700" letter-spacing="-1.5">Send context.</text>
+    <text x="76" y="322" fill="#68c7f2" font-size="64" font-weight="700" letter-spacing="-1.5">Keep identities local.</text>
+    <text x="78" y="379" fill="#c5dbe8" font-size="26">A self-hosted privacy gateway for your AI workflows.</text>
+    <path d="M78 429H1202" stroke="#416074"/>
+    <text x="78" y="476" fill="#c5dbe8" font-size="20">YOUR APP</text>
+    <text x="598" y="476" fill="#c5dbe8" font-size="20">MODEL RECEIVES</text>
+    <g font-family="Consolas, DejaVu Sans Mono, monospace" font-size="28">
+      <text x="78" y="524" fill="#f5f9fc">alex@example.com</text>
+      <text x="598" y="524" fill="#68c7f2">&lt;EMAIL_ADDRESS:v1:…&gt;</text>
+    </g>
+    <path d="M414 514H538M525 502L538 514L525 526" fill="none" stroke="#68c7f2" stroke-width="3"/>
+    <text x="78" y="594" fill="#c5dbe8" font-size="18">OPEN SOURCE · OPENAI-COMPATIBLE · ALPHA</text>
+    <text x="1202" y="594" text-anchor="end" fill="#c5dbe8" font-size="18">Synthetic example</text>
+  </g>
+</svg>

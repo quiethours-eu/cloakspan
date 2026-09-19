@@ -1,7 +1,7 @@
 [project]
 name = "secure-ai-gateway"
 version = "0.1.0a1"
-description = "Self-hosted privacy firewall for OpenAI-compatible LLM traffic"
+description = "Cloakspan: a self-hosted privacy gateway for OpenAI-compatible AI"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
@@ -66,6 +66,7 @@ dev = [
 ]
 
 [project.scripts]
+cloakspan = "gateway.main:run"
 secure-ai-gateway = "gateway.main:run"
 
 [build-system]
