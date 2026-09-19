@@ -21,6 +21,7 @@ WORKDIR /build
 COPY pyproject.toml README.md LICENSE ./
 COPY gateway ./gateway
 COPY recognizers ./recognizers
+COPY deployment/policies/default.yaml ./deployment/policies/default.yaml
 
 RUN python -m venv /opt/venv \
  && /opt/venv/bin/pip install --no-cache-dir .

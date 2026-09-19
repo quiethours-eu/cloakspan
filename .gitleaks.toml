@@ -28,3 +28,27 @@ paths = [
   '''^evals/datasets/dev/en\.jsonl$''',
   '''^evals/datasets/holdout/en\.jsonl$''',
 ]
+
+[[allowlists]]
+description = "Synthetic JWT detector fixtures"
+targetRules = ["jwt"]
+paths = [
+  '''^evals/leakage/test_leakage_regression\.py$''',
+  '''^evals/datasets/generate\.py$''',
+  '''^evals/datasets/dev/en\.jsonl$''',
+  '''^evals/datasets/holdout/en\.jsonl$''',
+]
+
+[[allowlists]]
+description = "Synthetic AWS temporary-key detector fixtures"
+targetRules = ["aws-access-token"]
+paths = [
+  '''^evals/datasets/generate\.py$''',
+  '''^evals/datasets/dev/en\.jsonl$''',
+  '''^evals/datasets/holdout/en\.jsonl$''',
+]
+
+[[allowlists]]
+description = "Configuration parser rejects this synthetic API key"
+targetRules = ["generic-api-key"]
+paths = ['''^tests/test_public_release_readiness\.py$''']
