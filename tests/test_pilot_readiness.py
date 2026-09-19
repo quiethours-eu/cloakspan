@@ -230,9 +230,11 @@ class TestRollbackIsCheap:
 
 
 class TestPublishedLimitationsAreTrue:
-    def test_the_readme_states_alpha_status(self):
-        assert "alpha" in README.lower()
-        assert "independent security review" in README.lower()
+    def test_the_readme_states_alpha_status_and_links_current_limits(self):
+        lowered = README.lower()
+        assert "alpha" in lowered
+        assert "[known limitations]" in lowered
+        assert "independent security review" not in lowered
 
     def test_streaming_is_documented_as_unsupported_and_is(self, client_factory=None):
         lowered = LIMITATIONS_DOCS.lower()
