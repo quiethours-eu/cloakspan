@@ -1,6 +1,6 @@
 # Configuration
 
-Secure AI Gateway reads configuration from environment variables. Development
+Cloakspan reads configuration from environment variables. Development
 mode can generate ephemeral secrets and use the offline mock provider.
 `SAG_ENVIRONMENT=production` refuses those fallbacks at startup.
 

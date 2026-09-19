@@ -23,6 +23,11 @@ review is outstanding.
 
 ## Next: public beta
 
+Expand country and language coverage through community recognizers backed by
+published format specifications and synthetic evaluation cases. Prioritise
+formats requested by pilot users worldwide and report coverage per entity and
+language before advertising support.
+
 Public beta requires a focused independent review with no critical/high finding
 open, two documentation-only installation tests by people outside development,
 two controlled pilots, and at least seven days of stable Hetzner staging.

@@ -1,14 +1,13 @@
-+------------------------------------------------------------------------------------+
-|                                 SECURE AI GATEWAY                                  |
-|                        send context. keep identities local.                        |
-+------------------------------------------------------------------------------------+
+Cloakspan
 
- YOUR APP                    LOCAL TRUST BOUNDARY                 AI MODEL
+Send context. Keep identities local.
+A self-hosted privacy gateway for your AI workflows.
 
-+------------------+     +-----------------------------------+     +------------------+
-| alice@acme.lv    | --> | detect -> policy -> tokenize      | --> | <EMAIL:v1:...>   |
-| 120385-12342     |     | allow | transform | local | block |     | no raw identity  |
-| restored reply   | <-- | provenance check <- restore       | <-- | model response   |
-+------------------+     +-----------------------------------+     +------------------+
+Synthetic example:
+Your app: alex@example.com
+Model receives: <EMAIL_ADDRESS:v1:...>
 
-                      restore only tokens minted for this request
+Open source / OpenAI-compatible / Alpha
+
+Editable artwork: social-preview.svg
+GitHub preview: social-preview.png (1280 x 640)

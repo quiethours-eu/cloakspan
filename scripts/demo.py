@@ -51,9 +51,10 @@ def lv_code() -> str:
 
 
 SCENARIOS = [
-    ("Ordinary request (allow)", "Summarise the key points of GDPR Article 5."),
-    ("Personal data (transform)", "Draft a reply to alice@acme.lv about the invoice."),
-    ("Baltic identifier (route locally)", f"The client's personal code is {lv_code()}."),
+    ("Ordinary request (allow)", "Summarise the benefits of a shorter support response time."),
+    ("Personal data (transform)", "Draft a reply to alex@example.com about the invoice."),
+    ("Payment card (transform)", "Check the refund for test card 4111 1111 1111 1111."),
+    ("National ID: Latvia example (route locally)", f"The client's personal code is {lv_code()}."),
     ("Credential (block)", "Deploy using AKIAIOSFODNN7EXAMPLE as the access key."),
     ("Confidential term (transform)", "What is the timeline for Project Aurora?"),
     # A token in the *current* format, correct in every respect except that this
@@ -89,7 +90,7 @@ async def main() -> int:
         audit_sink=audit,
     )
 
-    print(f"\n{BOLD}Secure AI Gateway - demo (mock provider, offline){RESET}\n")
+    print(f"\n{BOLD}Cloakspan - demo (mock provider, offline){RESET}\n")
 
     for title, prompt in SCENARIOS:
         ctx = RequestContext(

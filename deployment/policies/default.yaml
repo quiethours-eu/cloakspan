@@ -30,10 +30,10 @@ rules:
       type: block
 
   # ---- 90: national identifiers stay on local infrastructure ----
-  # Baltic personal codes are directly identifying and, for many of our target
-  # customers, subject to national supervisory expectations that make sending
-  # them to a third-party model hard to defend. Route to the local model
-  # instead of merely pseudonymising.
+  # National identifiers can warrant stricter handling than ordinary contact
+  # details. Route supported identifiers to the local model instead of merely
+  # pseudonymising. Current built-in coverage is Latvia, Lithuania, and Estonia;
+  # additional countries require recognizers and explicit policy entries.
   #
   # BALTIC_PERSONAL_CODE is the label used when a Lithuanian and an Estonian
   # code cannot be told apart -- the two are the same construction with the same

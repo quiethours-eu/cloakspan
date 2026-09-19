@@ -1,6 +1,6 @@
 # Support
 
-Secure AI Gateway is alpha software maintained on a best-effort basis.
+Cloakspan is alpha software maintained on a best-effort basis.
 
 ## Where to ask
 
