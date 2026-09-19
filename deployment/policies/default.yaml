@@ -1,0 +1,84 @@
+# Default policy for the Community Edition.
+#
+# Safe by default: secrets are blocked outright, personal data is pseudonymised
+# before it leaves the building, and anything unrecognised still has a defined
+# outcome via the catch-all rule.
+#
+# Rules are evaluated by (priority desc, BLOCK first, name asc). The order is
+# deterministic -- policy decisions are reproducible, which is a release gate.
+
+version: community-default-v1
+default_destination: external
+
+rules:
+  # ---- 100: credentials never leave, in any form ----
+  # Pseudonymising a secret is not good enough. The value is useless to the
+  # model, the fact that a credential was present is itself signal, and a
+  # restored secret is a credential leak with extra steps.
+  - name: block-secrets
+    priority: 100
+    match:
+      entities:
+        - AWS_ACCESS_KEY
+        - PRIVATE_KEY
+        - JWT
+        - OPENAI_API_KEY
+        - ANTHROPIC_API_KEY
+        - GITHUB_TOKEN
+        - SLACK_TOKEN
+    action:
+      type: block
+
+  # ---- 90: national identifiers stay on local infrastructure ----
+  # Baltic personal codes are directly identifying and, for many of our target
+  # customers, subject to national supervisory expectations that make sending
+  # them to a third-party model hard to defend. Route to the local model
+  # instead of merely pseudonymising.
+  #
+  # BALTIC_PERSONAL_CODE is the label used when a Lithuanian and an Estonian
+  # code cannot be told apart -- the two are the same construction with the same
+  # check digit. It MUST be listed here: without it, disambiguation would cost
+  # protection for exactly the codes we are least sure about, which is the wrong
+  # way round.
+  - name: baltic-ids-local-only
+    priority: 90
+    match:
+      entities:
+        - LV_PERSONAL_CODE
+        - LT_PERSONAL_CODE
+        - EE_PERSONAL_CODE
+        - BALTIC_PERSONAL_CODE
+    action:
+      type: route_local
+      destination: local
+
+  # ---- 80: financial identifiers are pseudonymised ----
+  - name: pseudonymise-financial
+    priority: 80
+    match:
+      entities:
+        - IBAN
+        - PAYMENT_CARD
+    action:
+      type: transform
+      destination: external
+
+  # ---- 50: personal and customer-defined data is pseudonymised ----
+  - name: pseudonymise-personal-data
+    priority: 50
+    match:
+      entities:
+        - EMAIL_ADDRESS
+        - PERSON
+        - CUSTOMER_TERM
+      min_score: 0.5
+    action:
+      type: transform
+      destination: external
+
+  # ---- 10: catch-all. Required -- every request must have a defined outcome ----
+  - name: default-allow
+    priority: 10
+    action:
+      type: allow
+      destination: external

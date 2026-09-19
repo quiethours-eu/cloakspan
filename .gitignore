@@ -1,0 +1,35 @@
+# Internal research. Not published, for two reasons:
+#
+#   * `repos/` holds cloned third-party sources. Large, and not ours to
+#     redistribute -- one of them carries NO licence at all, which makes
+#     redistributing it a copyright question rather than a size one.
+#   * The notes and licence matrix name two projects that carry an unreported,
+#     exploitable flaw. Publishing them would be an uncoordinated disclosure
+#     against software whose maintainers we have not contacted. The finding is
+#     published in FINDINGS.md §2 without the names; the names are held here.
+#
+# THIRD_PARTY_NOTICES.md stands on its own: no third-party code is copied into
+# this codebase, and every dependency is consumed as a package under its own
+# licence. Nothing in the public tree depends on this directory.
+.research/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+
+# Secrets and local state. Never commit any of these.
+.env
+*.key
+*.pem
+vault-data/
+audit-*.jsonl
+dist/
+*.cdx.json
+evals-report.json

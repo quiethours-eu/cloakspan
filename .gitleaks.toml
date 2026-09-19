@@ -1,0 +1,30 @@
+title = "Secure AI Gateway Gitleaks configuration"
+
+[extend]
+useDefault = true
+
+# Publicly documented, deliberately fake credentials used to prove detectors
+# block them. Keep this list value-specific: never allowlist all tests or evals.
+[[allowlists]]
+description = "Known synthetic credential fixtures"
+regexTarget = "match"
+regexes = [
+  '''AKIAIOSFODNN7EXAMPLE''',
+  '''sk-(proj-|ant-)?EXAMPLEEXAMPLEEXAMPLEEXAMPLE[0-9]+''',
+  '''gh[po]_EXAMPLE[0-9A-Za-z]+''',
+  '''ghp_1234567890abcdefghijklmnopqrstuvwxyz''',
+  '''sk-super-secret-(key-value|provider-key)''',
+]
+
+# These exact files contain inert PEM-shaped fixtures. Restrict the exception
+# to the default private-key rule so other secret rules still inspect them.
+[[allowlists]]
+description = "Synthetic private-key detector fixtures"
+targetRules = ["private-key"]
+paths = [
+  '''^tests/test_detectors\.py$''',
+  '''^evals/leakage/test_leakage_regression\.py$''',
+  '''^evals/datasets/generate\.py$''',
+  '''^evals/datasets/dev/en\.jsonl$''',
+  '''^evals/datasets/holdout/en\.jsonl$''',
+]

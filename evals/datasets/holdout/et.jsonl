@@ -1,0 +1,14 @@
+{"id": "hol-et-pos-0027", "kind": "positive", "lang": "et", "spans": [{"end": 40, "entity_type": "EE_PERSONAL_CODE", "start": 29}], "text": "Töötaja Maarja Oja isikukood 58308065706 tuleb lisada lepingule."}
+{"id": "hol-et-pos-0028", "kind": "positive", "lang": "et", "spans": [{"end": 37, "entity_type": "EMAIL_ADDRESS", "start": 23}], "text": "Tugitaotlus aadressilt c68@example.et; kontaktisik Maarja Oja, Dzintars Tehnika SIA."}
+{"id": "hol-et-pos-0029", "kind": "positive", "lang": "et", "spans": [{"end": 43, "entity_type": "IBAN", "start": 22}], "text": "Palgaülekanne kontole LV56BANK9139312816609 kinnitatud Ventspils kontoris."}
+{"id": "hol-et-pos-0030", "kind": "positive", "lang": "et", "spans": [{"end": 35, "entity_type": "PHONE_NUMBER", "start": 23}], "text": "Tarne hilineb: helista +372 5459922, vastutab Rein Lepik."}
+{"id": "hol-et-pos-0031", "kind": "positive", "lang": "et", "spans": [{"end": 40, "entity_type": "EE_PERSONAL_CODE", "start": 29}], "text": "Töötaja Rein Lepik isikukood 67802051031 tuleb lisada lepingule."}
+{"id": "hol-et-pos-0032", "kind": "positive", "lang": "et", "spans": [{"end": 37, "entity_type": "EMAIL_ADDRESS", "start": 23}], "text": "Tugitaotlus aadressilt a19@example.et; kontaktisik Katrin Ilves, Halcyon PLC."}
+{"id": "hol-et-pos-0033", "kind": "positive", "lang": "et", "spans": [{"end": 43, "entity_type": "IBAN", "start": 22}], "text": "Palgaülekanne kontole LV66BANK5531652701583 kinnitatud Bristol kontoris."}
+{"id": "hol-et-pos-0034", "kind": "positive", "lang": "et", "spans": [{"end": 35, "entity_type": "PHONE_NUMBER", "start": 23}], "text": "Tarne hilineb: helista +372 5771055, vastutab Katrin Ilves."}
+{"id": "hol-et-pos-0035", "kind": "positive", "lang": "et", "note": "no country context; the label must admit the ambiguity", "spans": [{"end": 33, "entity_type": "BALTIC_PERSONAL_CODE", "start": 22}], "text": "Rida ekspordifailist: 43806204162. Vajab kinnitust."}
+{"id": "hol-et-pos-0036", "kind": "positive", "lang": "et", "note": "no country context; the label must admit the ambiguity", "spans": [{"end": 33, "entity_type": "BALTIC_PERSONAL_CODE", "start": 22}], "text": "Rida ekspordifailist: 41012279120. Vajab kinnitust."}
+{"id": "hol-et-neg-0037", "kind": "negative", "lang": "et", "spans": [], "text": "Millised muudatused on uues puhkusepoliitikas?"}
+{"id": "hol-et-neg-0038", "kind": "negative", "lang": "et", "spans": [], "text": "Kirjuta lühike sissejuhatus pilveteenuste esitlusele."}
+{"id": "hol-et-neg-0039", "kind": "negative", "lang": "et", "spans": [], "text": "Võrdle kahte pakkumist hoolduskulude alusel."}
+{"id": "hol-et-neg-0040", "kind": "negative", "lang": "et", "spans": [], "text": "Millised muudatused on uues puhkusepoliitikas?"}

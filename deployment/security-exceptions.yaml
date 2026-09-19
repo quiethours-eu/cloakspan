@@ -1,0 +1,54 @@
+# Accepted vulnerability findings.
+#
+# A finding listed here does not fail the build. Everything about that sentence
+# is dangerous, so the format is deliberately awkward: every entry needs an
+# owner, a date, an expiry, and a reason that would survive being read aloud in
+# an incident review.
+#
+# The rules, enforced by tests/test_supply_chain.py:
+#
+#   * CRITICAL findings can never be excepted. If one is unexploitable, say so
+#     in `reason` and use a HIGH exception with `severity_override`, so the
+#     downgrade is a visible decision rather than an invisible omission.
+#   * Every entry expires. 90 days maximum. An exception with no end date is a
+#     decision nobody ever revisits.
+#   * `approved_by` must be a person, not a team. "Security" cannot be asked
+#     what they were thinking eight months later.
+#   * An expired entry fails the build, exactly as the finding would have.
+#
+# The point is not to make exceptions hard. It is to make them *visible*, dated,
+# and owned: a security gate may be waived only by written decision, with a named
+# owner and a date.
+
+version: 1
+
+# Severity policy. Applies to pip-audit, Trivy, and anything else wired into
+# `make security`.
+policy:
+  # Fails the build with no exception possible.
+  block: [CRITICAL]
+  # Fails the build unless an entry below covers it.
+  block_unless_excepted: [HIGH]
+  # Reported, tracked, does not block. Reviewed at each release.
+  report_only: [MEDIUM, LOW, UNKNOWN]
+  # Longest an exception may run before it must be reconsidered.
+  max_exception_days: 90
+
+exceptions: []
+# Example of the required shape. Uncomment and edit; do not copy the reason.
+#
+#  - id: CVE-2026-00000
+#    package: some-library
+#    affected_versions: ">=1.0,<1.4"
+#    severity: HIGH
+#    reason: >
+#      The vulnerable code path is the XML parser, which this product never
+#      calls: the only entry point is JSON, and the dependency is used solely
+#      for its HTTP client. Confirmed by tracing imports, not by assumption.
+#    mitigation: >
+#      Request bodies are size-capped and JSON-only, so the parser cannot be
+#      reached even with a crafted payload.
+#    approved_by: "Name Surname (security owner)"
+#    approved_on: 2026-08-04
+#    expires_on: 2026-11-02
+#    upstream: https://github.com/example/some-library/issues/123

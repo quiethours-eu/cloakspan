@@ -1,0 +1,21 @@
+{"id": "dev-et-pos-0040", "kind": "positive", "lang": "et", "spans": [{"end": 42, "entity_type": "EE_PERSONAL_CODE", "start": 31}], "text": "Kliendi Mart Saar isikukood on 59301027542. Palun koosta vastus."}
+{"id": "dev-et-pos-0041", "kind": "positive", "lang": "et", "spans": [{"end": 36, "entity_type": "EMAIL_ADDRESS", "start": 22}], "text": "Saada arve aadressile a52@example.et, klient Mart Saar, ettevõte Northwind Ltd."}
+{"id": "dev-et-pos-0042", "kind": "positive", "lang": "et", "spans": [{"end": 42, "entity_type": "IBAN", "start": 21}], "text": "Makse laekus kontole LV16BANK8461255687981 ettevõttelt Aurora Baltics SIA."}
+{"id": "dev-et-pos-0043", "kind": "positive", "lang": "et", "spans": [{"end": 51, "entity_type": "PHONE_NUMBER", "start": 39}], "text": "Võta ühendust: Kristiina Tamm, telefon +372 5709972, tarne Kaunas."}
+{"id": "dev-et-pos-0044", "kind": "positive", "lang": "et", "spans": [{"end": 47, "entity_type": "EE_PERSONAL_CODE", "start": 36}], "text": "Kliendi Kristiina Tamm isikukood on 49106263448. Palun koosta vastus."}
+{"id": "dev-et-pos-0045", "kind": "positive", "lang": "et", "spans": [{"end": 36, "entity_type": "EMAIL_ADDRESS", "start": 22}], "text": "Saada arve aadressile b46@example.et, klient Mart Saar, ettevõte Aurora Baltics SIA."}
+{"id": "dev-et-pos-0046", "kind": "positive", "lang": "et", "spans": [{"end": 42, "entity_type": "IBAN", "start": 21}], "text": "Makse laekus kontole LV17BANK6547173797060 ettevõttelt Aurora Baltics SIA."}
+{"id": "dev-et-pos-0047", "kind": "positive", "lang": "et", "spans": [{"end": 51, "entity_type": "PHONE_NUMBER", "start": 39}], "text": "Võta ühendust: Kristiina Tamm, telefon +372 5745762, tarne Kaunas."}
+{"id": "dev-et-pos-0048", "kind": "positive", "lang": "et", "spans": [{"end": 43, "entity_type": "EE_PERSONAL_CODE", "start": 32}], "text": "Kliendi Liisa Kask isikukood on 66907034666. Palun koosta vastus."}
+{"id": "dev-et-pos-0049", "kind": "positive", "lang": "et", "spans": [{"end": 36, "entity_type": "EMAIL_ADDRESS", "start": 22}], "text": "Saada arve aadressile b98@example.et, klient Kristiina Tamm, ettevõte Northwind Ltd."}
+{"id": "dev-et-pos-0050", "kind": "positive", "lang": "et", "spans": [{"end": 42, "entity_type": "IBAN", "start": 21}], "text": "Makse laekus kontole LV90BANK6352742913792 ettevõttelt Vilnis Logistika UAB."}
+{"id": "dev-et-pos-0051", "kind": "positive", "lang": "et", "spans": [{"end": 51, "entity_type": "PHONE_NUMBER", "start": 39}], "text": "Võta ühendust: Kristiina Tamm, telefon +372 5698418, tarne Tartu."}
+{"id": "dev-et-pos-0052", "kind": "positive", "lang": "et", "note": "no country context; the label must admit the ambiguity", "spans": [{"end": 30, "entity_type": "BALTIC_PERSONAL_CODE", "start": 19}], "text": "Kirje andmebaasis: 32506011481. Palun kontrolli ja vasta."}
+{"id": "dev-et-pos-0053", "kind": "positive", "lang": "et", "note": "no country context; the label must admit the ambiguity", "spans": [{"end": 30, "entity_type": "BALTIC_PERSONAL_CODE", "start": 19}], "text": "Kirje andmebaasis: 62312046675. Palun kontrolli ja vasta."}
+{"id": "dev-et-pos-0054", "kind": "positive", "lang": "et", "note": "no country context; the label must admit the ambiguity", "spans": [{"end": 30, "entity_type": "BALTIC_PERSONAL_CODE", "start": 19}], "text": "Kirje andmebaasis: 62106215374. Palun kontrolli ja vasta."}
+{"id": "dev-et-neg-0055", "kind": "negative", "lang": "et", "spans": [], "text": "Palun võta kokku GDPR artikli 5 põhipunktid."}
+{"id": "dev-et-neg-0056", "kind": "negative", "lang": "et", "spans": [], "text": "Milline on projekti tarnegraafik järgmises kvartalis?"}
+{"id": "dev-et-neg-0057", "kind": "negative", "lang": "et", "spans": [], "text": "Koosta kokkuvõte klienditeeninduse näitajatest."}
+{"id": "dev-et-neg-0058", "kind": "negative", "lang": "et", "spans": [], "text": "Palun võta kokku GDPR artikli 5 põhipunktid."}
+{"id": "dev-et-neg-0059", "kind": "negative", "lang": "et", "spans": [], "text": "Milline on projekti tarnegraafik järgmises kvartalis?"}
+{"id": "dev-et-neg-0060", "kind": "negative", "lang": "et", "spans": [], "text": "Koosta kokkuvõte klienditeeninduse näitajatest."}

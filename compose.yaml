@@ -1,0 +1,70 @@
+# Community Edition, single node.
+#
+# This is the production-safe Compose path. Copy .env.example to .env, fill
+# every required value, and run `docker compose config` before starting it.
+# The offline mock demonstration remains `make demo`; production must never
+# substitute the mock for a provider named by policy.
+
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: deployment/docker/Dockerfile
+    image: secure-ai-gateway:dev
+    init: true
+    restart: unless-stopped
+    ports:
+      # Loopback only by default. Widen this deliberately, behind a TLS
+      # terminating reverse proxy, never by accident.
+      - "${SAG_BIND_HOST:-127.0.0.1}:${SAG_PORT:-8080}:8080"
+    environment:
+      SAG_ENVIRONMENT: "production"
+      SAG_API_KEYS: "${SAG_API_KEYS:?Set SAG_API_KEYS in .env; no default key is provided}"
+      # 32-byte hex keys. Generate with: openssl rand -hex 32
+      SAG_VAULT_KEY: "${SAG_VAULT_KEY:?Set SAG_VAULT_KEY in .env (openssl rand -hex 32)}"
+      SAG_VAULT_KEY_V2: "${SAG_VAULT_KEY_V2:-}"
+      SAG_VAULT_ACTIVE_KEY_VERSION: "${SAG_VAULT_ACTIVE_KEY_VERSION:-}"
+      SAG_TOKEN_KEY: "${SAG_TOKEN_KEY:?Set SAG_TOKEN_KEY in .env (openssl rand -hex 32)}"
+      # The bundled policy can select both destinations, so both are required.
+      # They may point to the same OpenAI-compatible endpoint if desired.
+      SAG_EXTERNAL_BASE_URL: "${SAG_EXTERNAL_BASE_URL:?Set the external /v1 base URL}"
+      SAG_EXTERNAL_API_KEY: "${SAG_EXTERNAL_API_KEY:-}"
+      SAG_EXTERNAL_MODEL: "${SAG_EXTERNAL_MODEL:-}"
+      SAG_LOCAL_BASE_URL: "${SAG_LOCAL_BASE_URL:?Set the local /v1 base URL or use a custom policy}"
+      SAG_LOCAL_MODEL: "${SAG_LOCAL_MODEL:-}"
+      SAG_EGRESS_ALLOWLIST: "${SAG_EGRESS_ALLOWLIST:-}"
+      SAG_EGRESS_ALLOW_PRIVATE: "${SAG_EGRESS_ALLOW_PRIVATE:-false}"
+      SAG_TRUST_ENV_PROXY: "${SAG_TRUST_ENV_PROXY:-false}"
+      SAG_NER_MODEL_PATH: "${SAG_NER_MODEL_PATH:-}"
+      SAG_POLICY_PATH: "${SAG_POLICY_PATH:-}"
+      SAG_DICTIONARY_TERMS: "${SAG_DICTIONARY_TERMS:-}"
+      SAG_CUSTOM_PATTERNS: "${SAG_CUSTOM_PATTERNS:-}"
+      SAG_BLOCK_MIXED_SCRIPT: "${SAG_BLOCK_MIXED_SCRIPT:-false}"
+      SAG_VAULT_TTL_SECONDS: "${SAG_VAULT_TTL_SECONDS:-3600}"
+      SAG_MAX_INPUT_CHARS: "${SAG_MAX_INPUT_CHARS:-65536}"
+      SAG_MAX_REQUEST_BYTES: "${SAG_MAX_REQUEST_BYTES:-1048576}"
+      SAG_REQUEST_TIMEOUT_SECONDS: "${SAG_REQUEST_TIMEOUT_SECONDS:-120}"
+      SAG_LOG_LEVEL: "${SAG_LOG_LEVEL:-INFO}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # Hardening. The gateway needs no write access anywhere on disk.
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,uid=10001,gid=10001,mode=1700
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; assert urlopen('http://127.0.0.1:8080/healthz', timeout=3).status == 200"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          # A bound on memory turns a prompt-size denial-of-service attempt
+          # into a restart rather than a host-wide problem.
+          memory: 1g

@@ -1,0 +1,14 @@
++------------------------------------------------------------------------------------+
+|                                 SECURE AI GATEWAY                                  |
+|                        send context. keep identities local.                        |
++------------------------------------------------------------------------------------+
+
+ YOUR APP                    LOCAL TRUST BOUNDARY                 AI MODEL
+
++------------------+     +----------------------------------+     +------------------+
+| alice@acme.lv    | --> | detect -> policy -> tokenize     | --> | <EMAIL:v1:...>   |
+| 120385-12342     |     | allow | transform | local | block |     | no raw identity  |
++------------------+ <-- | provenance check <- restore      | <-- +------------------+
+                         +----------------------------------+
+
+                      restore only tokens minted for this request

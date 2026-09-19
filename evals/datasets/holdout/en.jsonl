@@ -1,0 +1,32 @@
+{"id": "hol-en-pos-0041", "kind": "positive", "lang": "en", "spans": [{"end": 85, "entity_type": "EMAIL_ADDRESS", "start": 71}], "text": "Renewal notice for Girios Prekyba UAB: the signatory Amara Nwosu is at b91@example.en."}
+{"id": "hol-en-pos-0042", "kind": "positive", "lang": "en", "spans": [{"end": 55, "entity_type": "IBAN", "start": 34}], "text": "Settle the outstanding balance to LV98BANK2187081917420 before the Narva audit."}
+{"id": "hol-en-pos-0043", "kind": "positive", "lang": "en", "spans": [{"end": 32, "entity_type": "PAYMENT_CARD", "start": 16}], "text": "Refund the card 4415444444444443 used for the Dzintars Tehnika SIA order."}
+{"id": "hol-en-pos-0044", "kind": "positive", "lang": "en", "spans": [{"end": 30, "entity_type": "PHONE_NUMBER", "start": 17}], "text": "Escalation: call +371 67371906 and ask for Elena Ricci at Halcyon PLC."}
+{"id": "hol-en-pos-0045", "kind": "positive", "lang": "en", "spans": [{"end": 89, "entity_type": "EMAIL_ADDRESS", "start": 75}], "text": "Renewal notice for Girios Prekyba UAB: the signatory Thomas Ashcroft is at c99@example.en."}
+{"id": "hol-en-pos-0046", "kind": "positive", "lang": "en", "spans": [{"end": 55, "entity_type": "IBAN", "start": 34}], "text": "Settle the outstanding balance to LV80BANK1877292914633 before the Panevėžys audit."}
+{"id": "hol-en-pos-0047", "kind": "positive", "lang": "en", "spans": [{"end": 32, "entity_type": "PAYMENT_CARD", "start": 16}], "text": "Refund the card 4770444444444442 used for the Halcyon PLC order."}
+{"id": "hol-en-pos-0048", "kind": "positive", "lang": "en", "spans": [{"end": 30, "entity_type": "PHONE_NUMBER", "start": 17}], "text": "Escalation: call +371 66301935 and ask for Elena Ricci at Rannaküla Systems OÜ."}
+{"id": "hol-en-neg-0049", "kind": "negative", "lang": "en", "spans": [], "text": "What changes are in the new leave policy?"}
+{"id": "hol-en-neg-0050", "kind": "negative", "lang": "en", "spans": [], "text": "Write a short introduction for a presentation on cloud services."}
+{"id": "hol-en-neg-0051", "kind": "negative", "lang": "en", "spans": [], "text": "Compare the two proposals on maintenance cost."}
+{"id": "hol-en-neg-0052", "kind": "negative", "lang": "en", "spans": [], "text": "What changes are in the new leave policy?"}
+{"id": "hol-en-bou-0053", "kind": "boundary", "lang": "en", "note": "invalid LV check digit", "spans": [], "text": "Ticket 070481-33449 was closed yesterday."}
+{"id": "hol-en-bou-0054", "kind": "boundary", "lang": "en", "note": "11 digits, invalid Baltic checksum", "spans": [], "text": "Batch 47705129993 left the warehouse."}
+{"id": "hol-en-bou-0055", "kind": "boundary", "lang": "en", "note": "16 digits, fails Luhn", "spans": [], "text": "The quote came to 5500000000000005 EUR."}
+{"id": "hol-en-bou-0056", "kind": "boundary", "lang": "en", "note": "IBAN shape, bad check digits", "spans": [], "text": "Account EE382200221020145699 was rejected."}
+{"id": "hol-en-bou-0057", "kind": "boundary", "lang": "en", "note": "date-like, not a personal code", "spans": [], "text": "Export stamp 20231104-11220 recorded."}
+{"id": "hol-en-bou-0058", "kind": "boundary", "lang": "en", "note": "hyphenated but wrong lengths", "spans": [], "text": "Asset 9876-54321 is in the store room."}
+{"id": "hol-en-bou-0059", "kind": "boundary", "lang": "en", "note": "11 digits, invalid Baltic checksum", "spans": [], "text": "Pipeline 29806142228 finished overnight."}
+{"id": "hol-en-bou-0060", "kind": "boundary", "lang": "en", "note": "at-sign, not an email", "spans": [], "text": "See https://example.org/x@y/z for the archive."}
+{"id": "hol-en-bou-0061", "kind": "boundary", "lang": "en", "note": "IPv4-like, out of range", "spans": [], "text": "Host 10.300.4.1 could not be resolved."}
+{"id": "hol-en-bou-0062", "kind": "boundary", "lang": "en", "note": "obfuscated, not an email", "spans": [], "text": "Write to sales [at] example [dot] org instead."}
+{"id": "hol-en-bou-0063", "kind": "boundary", "lang": "en", "note": "8 digits, phone-shaped, no phone context", "spans": [], "text": "Consignment 26719004 departed this morning."}
+{"id": "hol-en-bou-0064", "kind": "boundary", "lang": "en", "note": "phone-shaped quantity", "spans": [], "text": "The rebate was 63400912 cents overall."}
+{"id": "hol-en-bou-0065", "kind": "boundary", "lang": "en", "note": "phone-shaped part number", "spans": [], "text": "Component 54330871 awaits inspection."}
+{"id": "hol-en-pos-0066", "kind": "positive", "lang": "en", "note": "secret coverage", "spans": [{"end": 27, "entity_type": "AWS_ACCESS_KEY", "start": 7}], "text": "Rotate ASIAY34FZKBOKMUTVV7A before Friday."}
+{"id": "hol-en-pos-0067", "kind": "positive", "lang": "en", "note": "secret coverage", "spans": [{"end": 54, "entity_type": "OPENAI_API_KEY", "start": 19}], "text": "The staging key is sk-EXAMPLEEXAMPLEEXAMPLEEXAMPLE5678 for now."}
+{"id": "hol-en-pos-0068", "kind": "positive", "lang": "en", "note": "secret coverage", "spans": [{"end": 43, "entity_type": "ANTHROPIC_API_KEY", "start": 6}], "text": "Store sk-ant-EXAMPLEEXAMPLEEXAMPLEEXAMPLE42 in the vault."}
+{"id": "hol-en-pos-0069", "kind": "positive", "lang": "en", "note": "secret coverage", "spans": [{"end": 49, "entity_type": "GITHUB_TOKEN", "start": 9}], "text": "CI reads gho_EXAMPLE1111EXAMPLE1111EXAMPLE1111wxy at build time."}
+{"id": "hol-en-pos-0070", "kind": "positive", "lang": "en", "note": "secret coverage", "spans": [{"end": 62, "entity_type": "SLACK_TOKEN", "start": 30}], "text": "Legacy integration still uses xoxp-111111111111\u002dEXAMPLEEXAMPLE."}
+{"id": "hol-en-pos-0071", "kind": "positive", "lang": "en", "note": "secret coverage", "spans": [{"end": 89, "entity_type": "JWT", "start": 11}], "text": "Header was eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiZGVtbyJ9.YW5vdGhlci1leGFtcGxl"}
+{"id": "hol-en-pos-0072", "kind": "positive", "lang": "en", "note": "secret coverage; multi-line PEM block", "spans": [{"end": 205, "entity_type": "PRIVATE_KEY", "start": 24}], "text": "Found in an old backup:\n-----BEGIN RSA PRIVATE KEY-----\nMIIBOQIBAAJBALRmEXAMPLEONLY0000NotARealKey1111Placeholder2222Zz9w\nQIDAQABAkAEXAMPLEONLYnotarealprivatekeymaterial3333==\n-----END RSA PRIVATE KEY-----\nRevoke it today."}

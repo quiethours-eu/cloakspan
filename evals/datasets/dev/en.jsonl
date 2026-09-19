@@ -1,0 +1,38 @@
+{"id": "dev-en-pos-0061", "kind": "positive", "lang": "en", "spans": [{"end": 59, "entity_type": "EMAIL_ADDRESS", "start": 45}], "text": "The client Sarah Whitfield can be reached at c54@example.en regarding the Põhjala Tarkvara OÜ account."}
+{"id": "dev-en-pos-0062", "kind": "positive", "lang": "en", "spans": [{"end": 47, "entity_type": "IBAN", "start": 26}], "text": "Payment was received into LV89BANK1808930211085 from Põhjala Tarkvara OÜ in Liepāja."}
+{"id": "dev-en-pos-0063", "kind": "positive", "lang": "en", "spans": [{"end": 32, "entity_type": "PAYMENT_CARD", "start": 16}], "text": "Charge the card 4690444444444449 for the Aurora Baltics SIA subscription."}
+{"id": "dev-en-pos-0064", "kind": "positive", "lang": "en", "spans": [{"end": 19, "entity_type": "PHONE_NUMBER", "start": 6}], "text": "Phone +371 66866484 to reach Sarah Whitfield at Vilnis Logistika UAB about the Vilnius delivery."}
+{"id": "dev-en-pos-0065", "kind": "positive", "lang": "en", "spans": [{"end": 56, "entity_type": "EMAIL_ADDRESS", "start": 42}], "text": "The client Daniel Okoro can be reached at b23@example.en regarding the Põhjala Tarkvara OÜ account."}
+{"id": "dev-en-pos-0066", "kind": "positive", "lang": "en", "spans": [{"end": 47, "entity_type": "IBAN", "start": 26}], "text": "Payment was received into LV64BANK2651344352052 from Northwind Ltd in Rīga."}
+{"id": "dev-en-pos-0067", "kind": "positive", "lang": "en", "spans": [{"end": 32, "entity_type": "PAYMENT_CARD", "start": 16}], "text": "Charge the card 4456444444444443 for the Northwind Ltd subscription."}
+{"id": "dev-en-pos-0068", "kind": "positive", "lang": "en", "spans": [{"end": 19, "entity_type": "PHONE_NUMBER", "start": 6}], "text": "Phone +371 68853687 to reach Priya Raman at Põhjala Tarkvara OÜ about the Tallinn delivery."}
+{"id": "dev-en-pos-0069", "kind": "positive", "lang": "en", "spans": [{"end": 56, "entity_type": "EMAIL_ADDRESS", "start": 42}], "text": "The client Daniel Okoro can be reached at c35@example.en regarding the Aurora Baltics SIA account."}
+{"id": "dev-en-pos-0070", "kind": "positive", "lang": "en", "spans": [{"end": 47, "entity_type": "IBAN", "start": 26}], "text": "Payment was received into LV59BANK7349880460499 from Aurora Baltics SIA in Manchester."}
+{"id": "dev-en-pos-0071", "kind": "positive", "lang": "en", "spans": [{"end": 32, "entity_type": "PAYMENT_CARD", "start": 16}], "text": "Charge the card 4357444444444443 for the Aurora Baltics SIA subscription."}
+{"id": "dev-en-pos-0072", "kind": "positive", "lang": "en", "spans": [{"end": 19, "entity_type": "PHONE_NUMBER", "start": 6}], "text": "Phone +371 63189428 to reach Daniel Okoro at Vilnis Logistika UAB about the Tallinn delivery."}
+{"id": "dev-en-neg-0073", "kind": "negative", "lang": "en", "spans": [], "text": "Summarise the key points of GDPR Article 5."}
+{"id": "dev-en-neg-0074", "kind": "negative", "lang": "en", "spans": [], "text": "What is the delivery timeline for the next quarter?"}
+{"id": "dev-en-neg-0075", "kind": "negative", "lang": "en", "spans": [], "text": "Draft a summary of the customer service metrics."}
+{"id": "dev-en-neg-0076", "kind": "negative", "lang": "en", "spans": [], "text": "Summarise the key points of GDPR Article 5."}
+{"id": "dev-en-neg-0077", "kind": "negative", "lang": "en", "spans": [], "text": "What is the delivery timeline for the next quarter?"}
+{"id": "dev-en-neg-0078", "kind": "negative", "lang": "en", "spans": [], "text": "Draft a summary of the customer service metrics."}
+{"id": "dev-en-bou-0079", "kind": "boundary", "lang": "en", "note": "invalid LV check digit", "spans": [], "text": "Order number 120385-12341 shipped on time."}
+{"id": "dev-en-bou-0080", "kind": "boundary", "lang": "en", "note": "11 digits, invalid Baltic checksum", "spans": [], "text": "Reference 39912319990 is the batch identifier."}
+{"id": "dev-en-bou-0081", "kind": "boundary", "lang": "en", "note": "16 digits, fails Luhn", "spans": [], "text": "Invoice total 4111111111111112 EUR was disputed."}
+{"id": "dev-en-bou-0082", "kind": "boundary", "lang": "en", "note": "IBAN shape, bad check digits", "spans": [], "text": "Account LV80BANK0000435195100 is not a real IBAN."}
+{"id": "dev-en-bou-0083", "kind": "boundary", "lang": "en", "note": "date-like, not a personal code", "spans": [], "text": "Timestamp 20240115-09301 marks the export."}
+{"id": "dev-en-bou-0084", "kind": "boundary", "lang": "en", "note": "hyphenated but wrong lengths", "spans": [], "text": "Serial 1234-56789 belongs to the printer."}
+{"id": "dev-en-bou-0085", "kind": "boundary", "lang": "en", "note": "11 digits, invalid Baltic checksum", "spans": [], "text": "Build 38503121231 completed in 4 minutes."}
+{"id": "dev-en-bou-0086", "kind": "boundary", "lang": "en", "note": "at-sign, not an email", "spans": [], "text": "The article is at https://example.com/a@b/c for reference."}
+{"id": "dev-en-bou-0087", "kind": "boundary", "lang": "en", "note": "IPv4-like, out of range", "spans": [], "text": "Version 192.168.1.999 is not a valid address."}
+{"id": "dev-en-bou-0088", "kind": "boundary", "lang": "en", "note": "obfuscated, not an email", "spans": [], "text": "Contact the team at support (at) example dot com."}
+{"id": "dev-en-bou-0089", "kind": "boundary", "lang": "en", "note": "8 digits, phone-shaped, no phone context", "spans": [], "text": "Order number 29123456 shipped today."}
+{"id": "dev-en-bou-0090", "kind": "boundary", "lang": "en", "note": "phone-shaped quantity", "spans": [], "text": "The invoice total was 61234567 cents."}
+{"id": "dev-en-bou-0091", "kind": "boundary", "lang": "en", "note": "phone-shaped part number", "spans": [], "text": "Part 51234567 is out of stock."}
+{"id": "dev-en-pos-0092", "kind": "positive", "lang": "en", "note": "secret coverage", "spans": [{"end": 32, "entity_type": "AWS_ACCESS_KEY", "start": 12}], "text": "Deploy with AKIAIOSFODNN7EXAMPLE as the access key."}
+{"id": "dev-en-pos-0093", "kind": "positive", "lang": "en", "note": "secret coverage", "spans": [{"end": 59, "entity_type": "OPENAI_API_KEY", "start": 19}], "text": "Set OPENAI_API_KEY=sk-proj-EXAMPLEEXAMPLEEXAMPLEEXAMPLE1234 in the env."}
+{"id": "dev-en-pos-0094", "kind": "positive", "lang": "en", "note": "secret coverage", "spans": [{"end": 59, "entity_type": "ANTHROPIC_API_KEY", "start": 22}], "text": "Set ANTHROPIC_API_KEY=sk-ant-EXAMPLEEXAMPLEEXAMPLEEXAMPLE99 in the env."}
+{"id": "dev-en-pos-0095", "kind": "positive", "lang": "en", "note": "secret coverage", "spans": [{"end": 44, "entity_type": "GITHUB_TOKEN", "start": 4}], "text": "Use ghp_EXAMPLE0000EXAMPLE0000EXAMPLE0000abc for the checkout."}
+{"id": "dev-en-pos-0096", "kind": "positive", "lang": "en", "note": "secret coverage", "spans": [{"end": 51, "entity_type": "SLACK_TOKEN", "start": 19}], "text": "The bot posts with xoxb-000000000000\u002dEXAMPLEEXAMPLE."}
+{"id": "dev-en-pos-0097", "kind": "positive", "lang": "en", "note": "secret coverage", "spans": [{"end": 90, "entity_type": "JWT", "start": 22}], "text": "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJleGFtcGxlIn0.c2lnbmF0dXJlLWV4YW1wbGU"}
+{"id": "dev-en-pos-0098", "kind": "positive", "lang": "en", "note": "secret coverage; multi-line PEM block", "spans": [{"end": 193, "entity_type": "PRIVATE_KEY", "start": 22}], "text": "Committed by mistake:\n-----BEGIN RSA PRIVATE KEY-----\nMIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Qu\nKUpRKfFLfRYC9AIKjbJTWit+CqvjWYzvQwECAwEAAQ==\n-----END RSA PRIVATE KEY-----\nPlease rotate."}

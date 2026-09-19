@@ -1,0 +1,99 @@
+[project]
+name = "secure-ai-gateway"
+version = "0.1.0a1"
+description = "Self-hosted privacy firewall for OpenAI-compatible LLM traffic"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "QuietHours" }]
+keywords = [
+  "ai-security",
+  "llm-security",
+  "privacy",
+  "pseudonymization",
+  "data-loss-prevention",
+  "openai-compatible",
+  "self-hosted",
+]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Framework :: FastAPI",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Security",
+]
+
+# Deliberately minimal. The deterministic security core takes no heavy
+# dependencies so the Community Edition image stays small and starts fast,
+# and so an operator with no Internet access after install is never blocked
+# on a model download. See docs/adr/0003-detection-architecture.md.
+dependencies = [
+  "fastapi>=0.115,<1.0",
+  "uvicorn[standard]>=0.30,<1.0",
+  "httpx>=0.27,<1.0",
+  "pydantic>=2.9,<3.0",
+  "pyyaml>=6.0,<7.0",
+  "cryptography>=43.0",
+]
+
+[project.optional-dependencies]
+# Contextual NER. Pulls spaCy; the operator supplies the language model.
+# We deliberately do NOT bundle a spaCy model: several are CC-BY-SA-4.0.
+ner = ["presidio-analyzer>=2.2,<3.0"]
+
+# Multi-provider routing via the LiteLLM MIT core.
+# NEVER add "litellm-enterprise" here -- it is proprietary and forbids
+# production use without a BerriAI subscription. Enforced by
+# tests/test_licence_boundary.py.
+routing = ["litellm>=1.60,<2.0"]
+
+postgres = ["asyncpg>=0.29,<1.0"]
+
+dev = [
+  # >=9.0.3 : pytest 8.4.2 carries PYSEC-2026-1845, fixed in 9.0.3. The upper
+  # bound was <9.0, which pinned us to the vulnerable line -- caught by
+  # `make security` (pip-audit), which is exactly what that gate is for.
+  "pytest>=9.0.3,<10.0",
+  "pytest-asyncio>=0.24,<2.0",
+  "hypothesis>=6.100,<7.0",
+  "ruff>=0.6,<1.0",
+  "pip-audit>=2.7",
+]
+
+[project.scripts]
+secure-ai-gateway = "gateway.main:run"
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["gateway", "recognizers"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"deployment/policies/default.yaml" = "gateway/_data/default-policy.yaml"
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "evals"]
+asyncio_mode = "auto"
+filterwarnings = ["error::DeprecationWarning"]
+# Container tests build and run the image, so they are minutes rather than
+# seconds and are excluded from the default run. `make test-container` opts in.
+# They are a release gate, not a inner-loop test -- but they are not optional.
+markers = ["container: runs against the built Docker image (slow, needs Docker)"]
+addopts = "-m 'not container'"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "S", "ASYNC"]
+# S101 (assert) is fine in tests.
+# S101: assert is the point of a test.
+# S105/S106: test fixtures contain deliberately fake, publicly-documented
+#   example credentials (e.g. AWS's AKIAIOSFODNN7EXAMPLE) so we can prove the
+#   gateway blocks them. Flagging those defeats the test.
+per-file-ignores = { "tests/*" = ["S101", "S105", "S106"], "evals/*" = ["S101", "S105", "S106"] }

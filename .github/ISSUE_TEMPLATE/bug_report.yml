@@ -1,0 +1,57 @@
+name: Bug report
+description: Report reproducible incorrect behavior without sharing sensitive data.
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include real prompts, keys, credentials, tokens, or private endpoint addresses.
+        Security vulnerabilities belong in GitHub private vulnerability reporting, not here.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v0.1.0-alpha.1 or commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment
+      options:
+        - Source / virtual environment
+        - Docker
+        - Docker Compose
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Sanitize all logs and configuration before pasting them.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Use synthetic values only.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed prompts, secrets, credentials, private URLs, and personal data.
+          required: true
+        - label: This is not a security vulnerability requiring private disclosure.
+          required: true

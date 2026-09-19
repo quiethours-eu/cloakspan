@@ -1,0 +1,21 @@
+{"id": "dev-lt-pos-0019", "kind": "positive", "lang": "lt", "spans": [{"end": 53, "entity_type": "LT_PERSONAL_CODE", "start": 42}], "text": "Kliento Tomas Petrauskas asmens kodas yra 38812211606. Prašau paruošti atsakymą."}
+{"id": "dev-lt-pos-0020", "kind": "positive", "lang": "lt", "spans": [{"end": 39, "entity_type": "EMAIL_ADDRESS", "start": 25}], "text": "Sąskaitą siųskite adresu b81@example.lt, klientas Rūta Kazlauskaitė, įmonė Northwind Ltd."}
+{"id": "dev-lt-pos-0021", "kind": "positive", "lang": "lt", "spans": [{"end": 49, "entity_type": "IBAN", "start": 28}], "text": "Mokėjimas gautas į sąskaitą LV30BANK9668694565871 iš Vilnis Logistika UAB."}
+{"id": "dev-lt-pos-0022", "kind": "positive", "lang": "lt", "spans": [{"end": 51, "entity_type": "PHONE_NUMBER", "start": 38}], "text": "Susisiekite su Tomas Petrauskas, tel. +370 61283016, dėl pristatymo į Tallinn."}
+{"id": "dev-lt-pos-0023", "kind": "positive", "lang": "lt", "spans": [{"end": 54, "entity_type": "LT_PERSONAL_CODE", "start": 43}], "text": "Kliento Rūta Kazlauskaitė asmens kodas yra 36402031948. Prašau paruošti atsakymą."}
+{"id": "dev-lt-pos-0024", "kind": "positive", "lang": "lt", "spans": [{"end": 39, "entity_type": "EMAIL_ADDRESS", "start": 25}], "text": "Sąskaitą siųskite adresu b25@example.lt, klientas Tomas Petrauskas, įmonė Northwind Ltd."}
+{"id": "dev-lt-pos-0025", "kind": "positive", "lang": "lt", "spans": [{"end": 49, "entity_type": "IBAN", "start": 28}], "text": "Mokėjimas gautas į sąskaitą LV84BANK7044143045379 iš Aurora Baltics SIA."}
+{"id": "dev-lt-pos-0026", "kind": "positive", "lang": "lt", "spans": [{"end": 51, "entity_type": "PHONE_NUMBER", "start": 38}], "text": "Susisiekite su Tomas Petrauskas, tel. +370 64959092, dėl pristatymo į Vilnius."}
+{"id": "dev-lt-pos-0027", "kind": "positive", "lang": "lt", "spans": [{"end": 53, "entity_type": "LT_PERSONAL_CODE", "start": 42}], "text": "Kliento Tomas Petrauskas asmens kodas yra 48712143072. Prašau paruošti atsakymą."}
+{"id": "dev-lt-pos-0028", "kind": "positive", "lang": "lt", "spans": [{"end": 39, "entity_type": "EMAIL_ADDRESS", "start": 25}], "text": "Sąskaitą siųskite adresu a10@example.lt, klientas Tomas Petrauskas, įmonė Aurora Baltics SIA."}
+{"id": "dev-lt-pos-0029", "kind": "positive", "lang": "lt", "spans": [{"end": 49, "entity_type": "IBAN", "start": 28}], "text": "Mokėjimas gautas į sąskaitą LV81BANK8305086342337 iš Aurora Baltics SIA."}
+{"id": "dev-lt-pos-0030", "kind": "positive", "lang": "lt", "spans": [{"end": 52, "entity_type": "PHONE_NUMBER", "start": 39}], "text": "Susisiekite su Rūta Kazlauskaitė, tel. +370 65340283, dėl pristatymo į Vilnius."}
+{"id": "dev-lt-pos-0031", "kind": "positive", "lang": "lt", "note": "no country context; the label must admit the ambiguity", "spans": [{"end": 34, "entity_type": "BALTIC_PERSONAL_CODE", "start": 23}], "text": "Įrašas duomenų bazėje: 32408228878. Patikrinkite ir atsakykite."}
+{"id": "dev-lt-pos-0032", "kind": "positive", "lang": "lt", "note": "no country context; the label must admit the ambiguity", "spans": [{"end": 34, "entity_type": "BALTIC_PERSONAL_CODE", "start": 23}], "text": "Įrašas duomenų bazėje: 44706214821. Patikrinkite ir atsakykite."}
+{"id": "dev-lt-pos-0033", "kind": "positive", "lang": "lt", "note": "no country context; the label must admit the ambiguity", "spans": [{"end": 34, "entity_type": "BALTIC_PERSONAL_CODE", "start": 23}], "text": "Įrašas duomenų bazėje: 61208224199. Patikrinkite ir atsakykite."}
+{"id": "dev-lt-neg-0034", "kind": "negative", "lang": "lt", "spans": [], "text": "Prašau apibendrinti pagrindinius BDAR 5 straipsnio punktus."}
+{"id": "dev-lt-neg-0035", "kind": "negative", "lang": "lt", "spans": [], "text": "Koks yra projekto pristatymo grafikas kitą ketvirtį?"}
+{"id": "dev-lt-neg-0036", "kind": "negative", "lang": "lt", "spans": [], "text": "Paruošk santrauką apie klientų aptarnavimo rodiklius."}
+{"id": "dev-lt-neg-0037", "kind": "negative", "lang": "lt", "spans": [], "text": "Prašau apibendrinti pagrindinius BDAR 5 straipsnio punktus."}
+{"id": "dev-lt-neg-0038", "kind": "negative", "lang": "lt", "spans": [], "text": "Koks yra projekto pristatymo grafikas kitą ketvirtį?"}
+{"id": "dev-lt-neg-0039", "kind": "negative", "lang": "lt", "spans": [], "text": "Paruošk santrauką apie klientų aptarnavimo rodiklius."}

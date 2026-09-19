@@ -1,0 +1,14 @@
+{"id": "hol-lt-pos-0013", "kind": "positive", "lang": "lt", "spans": [{"end": 55, "entity_type": "LT_PERSONAL_CODE", "start": 44}], "text": "Darbuotojo Mindaugas Žilinskas asmens kodas 69712149273 pridedamas prie sutarties."}
+{"id": "hol-lt-pos-0014", "kind": "positive", "lang": "lt", "spans": [{"end": 35, "entity_type": "EMAIL_ADDRESS", "start": 21}], "text": "Pagalbos užklausa iš b19@example.lt; kontaktinis asmuo Gintarė Butkutė, Dzintars Tehnika SIA."}
+{"id": "hol-lt-pos-0015", "kind": "positive", "lang": "lt", "spans": [{"end": 45, "entity_type": "IBAN", "start": 24}], "text": "Atlyginimo pervedimas į LV19BANK3996556381724 patvirtintas Klaipėda skyriuje."}
+{"id": "hol-lt-pos-0016", "kind": "positive", "lang": "lt", "spans": [{"end": 47, "entity_type": "PHONE_NUMBER", "start": 34}], "text": "Pristatymo vėlavimas: skambinkite +370 61340422, atsakingas Gintarė Butkutė."}
+{"id": "hol-lt-pos-0017", "kind": "positive", "lang": "lt", "spans": [{"end": 55, "entity_type": "LT_PERSONAL_CODE", "start": 44}], "text": "Darbuotojo Mindaugas Žilinskas asmens kodas 57510102178 pridedamas prie sutarties."}
+{"id": "hol-lt-pos-0018", "kind": "positive", "lang": "lt", "spans": [{"end": 35, "entity_type": "EMAIL_ADDRESS", "start": 21}], "text": "Pagalbos užklausa iš c60@example.lt; kontaktinis asmuo Mindaugas Žilinskas, Halcyon PLC."}
+{"id": "hol-lt-pos-0019", "kind": "positive", "lang": "lt", "spans": [{"end": 45, "entity_type": "IBAN", "start": 24}], "text": "Atlyginimo pervedimas į LV25BANK5231725920264 patvirtintas Pärnu skyriuje."}
+{"id": "hol-lt-pos-0020", "kind": "positive", "lang": "lt", "spans": [{"end": 47, "entity_type": "PHONE_NUMBER", "start": 34}], "text": "Pristatymo vėlavimas: skambinkite +370 65908736, atsakingas Gintarė Butkutė."}
+{"id": "hol-lt-pos-0021", "kind": "positive", "lang": "lt", "note": "no country context; the label must admit the ambiguity", "spans": [{"end": 31, "entity_type": "BALTIC_PERSONAL_CODE", "start": 20}], "text": "Eilutė iš eksporto: 56709055495. Reikia patvirtinimo."}
+{"id": "hol-lt-pos-0022", "kind": "positive", "lang": "lt", "note": "no country context; the label must admit the ambiguity", "spans": [{"end": 31, "entity_type": "BALTIC_PERSONAL_CODE", "start": 20}], "text": "Eilutė iš eksporto: 44509161454. Reikia patvirtinimo."}
+{"id": "hol-lt-neg-0023", "kind": "negative", "lang": "lt", "spans": [], "text": "Kokie pakeitimai numatyti naujoje atostogų politikoje?"}
+{"id": "hol-lt-neg-0024", "kind": "negative", "lang": "lt", "spans": [], "text": "Parašyk trumpą įvadą pristatymui apie debesijos paslaugas."}
+{"id": "hol-lt-neg-0025", "kind": "negative", "lang": "lt", "spans": [], "text": "Palygink du pasiūlymus pagal priežiūros sąnaudas."}
+{"id": "hol-lt-neg-0026", "kind": "negative", "lang": "lt", "spans": [], "text": "Kokie pakeitimai numatyti naujoje atostogų politikoje?"}
