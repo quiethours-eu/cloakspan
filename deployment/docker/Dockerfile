@@ -10,7 +10,7 @@
 #   make release-image  -> digest, and refuses to run without one
 #
 # See deployment/docker/base-image.env and scripts/pin_base_image.py.
-ARG BASE_REF=python:3.12-slim-bookworm
+ARG BASE_REF=python:3.12-alpine3.23
 
 FROM ${BASE_REF} AS builder
 
@@ -32,16 +32,16 @@ RUN python -m venv /opt/venv \
 ARG BASE_REF
 FROM ${BASE_REF} AS runtime
 
-# Patch the base image, then remove the package manager metadata so the
-# runtime layer carries no apt cache.
-RUN apt-get update \
- && apt-get upgrade -y \
- && rm -rf /var/lib/apt/lists/* \
- && rm -f /usr/bin/apt /usr/bin/apt-get /usr/bin/apt-cache
+# Patch the base image, then remove the package manager and its metadata from
+# the runtime layer. Alpine's smaller package set also avoids carrying dozens
+# of unfixed vulnerabilities inherited from the Debian slim image.
+RUN apk upgrade --no-cache \
+ && rm -rf /var/cache/apk/* /lib/apk/db/lock \
+ && rm -f /sbin/apk
 
 # Non-root, no login shell, no home directory to write into.
-RUN groupadd --gid 10001 gateway \
- && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin gateway
+RUN addgroup -g 10001 -S gateway \
+ && adduser -u 10001 -S -D -H -G gateway -s /sbin/nologin gateway
 
 COPY --from=builder /opt/venv /opt/venv
 COPY --chown=root:root deployment/policies /etc/secure-ai-gateway/policies

@@ -234,9 +234,9 @@ class TestRuntimeHardening:
         """A bound turns a prompt-size DoS attempt into a restart."""
         assert int(_inspect("{{.HostConfig.Memory}}")) == 1024 * 1024 * 1024
 
-    def test_no_package_manager_in_the_runtime_layer(self, container):
-        result = _docker("exec", CONTAINER, "sh", "-c", "command -v apt-get pip", check=False)
-        assert "apt-get" not in result.stdout
+    def test_no_os_package_manager_in_the_runtime_layer(self, container):
+        result = _docker("exec", CONTAINER, "sh", "-c", "command -v apk apt-get", check=False)
+        assert result.stdout.strip() == ""
 
 
 class TestRequestPathInTheContainer:

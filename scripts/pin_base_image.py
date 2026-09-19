@@ -5,7 +5,7 @@
 
 ## Why
 
-A tag is mutable. ``python:3.12-slim-bookworm`` names a different image today
+A tag is mutable. ``python:3.12-alpine3.23`` names a different image today
 than it did last month, so a build referencing it is not reproducible and an
 SBOM taken from it describes an artefact that no longer exists. For a product
 whose output is evidence, that is not a minor inconvenience.
