@@ -5,10 +5,10 @@
 
  YOUR APP                    LOCAL TRUST BOUNDARY                 AI MODEL
 
-+------------------+     +----------------------------------+     +------------------+
-| alice@acme.lv    | --> | detect -> policy -> tokenize     | --> | <EMAIL:v1:...>   |
++------------------+     +-----------------------------------+     +------------------+
+| alice@acme.lv    | --> | detect -> policy -> tokenize      | --> | <EMAIL:v1:...>   |
 | 120385-12342     |     | allow | transform | local | block |     | no raw identity  |
-+------------------+ <-- | provenance check <- restore      | <-- +------------------+
-                         +----------------------------------+
+| restored reply   | <-- | provenance check <- restore       | <-- | model response   |
++------------------+     +-----------------------------------+     +------------------+
 
                       restore only tokens minted for this request

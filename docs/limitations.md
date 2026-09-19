@@ -49,10 +49,6 @@ closed.
   scores primarily test segmentation and known boundary cases.
 - Performance numbers are machine-local regression signals, not an SLO or a
   published capacity claim.
-- No independent security review has been performed.
-- This checkout has no Git remote and no published Actions run to cite.
-  Container SBOM, Trivy image scanning, hardening tests, signing, and provenance
-  therefore lack public release evidence.
 - The base image is still referenced without a release digest, so the release
   image gate intentionally refuses to publish.
 

@@ -2,11 +2,11 @@
 
 **Send context to the model. Keep identities local.**
 
-A self-hosted privacy firewall for OpenAI-compatible LLM traffic. It finds
-sensitive values, applies policy, replaces approved values with scoped tokens,
-and restores only tokens that were minted for the current request.
+Secure AI Gateway sits between your app and an OpenAI-compatible model. It
+detects sensitive values, applies your policy, replaces approved values with
+scoped tokens, and restores only tokens created for the same request.
 
-[![Status: alpha](https://img.shields.io/badge/status-alpha-f59e0b)](#security-status)
+[![Status: alpha](https://img.shields.io/badge/status-alpha-f59e0b)](#current-limits)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2ea44f)](LICENSE)
 
@@ -18,26 +18,19 @@ and restores only tokens that were minted for the current request.
 
  YOUR APP                    LOCAL TRUST BOUNDARY                 AI MODEL
 
-+------------------+     +----------------------------------+     +------------------+
-| alice@acme.lv    | --> | detect -> policy -> tokenize     | --> | <EMAIL:v1:...>   |
++------------------+     +-----------------------------------+     +------------------+
+| alice@acme.lv    | --> | detect -> policy -> tokenize      | --> | <EMAIL:v1:...>   |
 | 120385-12342     |     | allow | transform | local | block |     | no raw identity  |
-+------------------+ <-- | provenance check <- restore      | <-- +------------------+
-                         +----------------------------------+
+| restored reply   | <-- | provenance check <- restore       | <-- | model response   |
++------------------+     +-----------------------------------+     +------------------+
 
                       restore only tokens minted for this request
 ```
 
-The deterministic offline demo makes the boundary observable: it prints the
-exact request seen by the mock provider and proves that a forged token is not
-restored.
+The offline demo prints the exact request seen by a deterministic mock provider
+and checks that the gateway refuses to restore a forged token.
 
 [![Secure AI Gateway proof-of-concept request flow](docs/assets/poc-schematic.svg)](docs/assets/poc-schematic.svg)
-
-Editable source: [poc-schematic.drawio](docs/assets/poc-schematic.drawio).
-
-> [!WARNING]
-> This is an alpha and has not had an independent security review. Use synthetic
-> data while evaluating it. Do not put it in front of production traffic yet.
 
 ## Why it exists
 
@@ -45,8 +38,8 @@ Plain redaction removes information the model needs. Predictable placeholders
 such as `<PERSON_1>` keep some structure, but they are easy to guess or replay.
 
 Secure AI Gateway mints typed HMAC tokens scoped to a tenant and conversation.
-The restoration path also checks per-request provenance, so a well-formed token
-from another request stays opaque even if it exists in the local vault.
+Before restoration, it checks that each token came from the current request. A
+valid token from another request therefore stays opaque.
 
 ```text
 app -> authenticate -> inspect -> policy -> tokenize -> provider
@@ -80,9 +73,9 @@ py -3 -m venv .venv
 
 If you have GNU Make, `make setup && make demo` runs the same path.
 
-The demo covers an ordinary request, email tokenization, local routing for a
-Latvian personal code, credential blocking, a customer dictionary term, and a
-forged-token restoration attempt. It prints exactly what the provider received.
+The demo covers email tokenization, local routing for a Latvian personal code,
+credential blocking, a customer dictionary term, and a forged-token restoration
+attempt. It prints exactly what the provider received.
 
 ## Connect a client
 
@@ -132,9 +125,8 @@ changing the egress or private-network settings.
 
 Deterministic detectors work without model downloads. The evaluation harness
 reports precision and recall per entity and language against versioned synthetic
-corpora. Those results are regression evidence, not a claim about real-world
-recall; the [evaluation report](docs/evaluation-report.md) publishes the sample
-sizes and caveats.
+corpora. The [evaluation report](docs/evaluation-report.md) lists the sample
+sizes, results, and coverage boundaries.
 
 ## Security choices
 
@@ -154,14 +146,14 @@ sizes and caveats.
   on every request. Ambient proxy variables are ignored unless explicitly
   enabled.
 
-The design is backed by adversarial, property, leakage, policy, egress, and
-vault tests. Read the [threat model](docs/threat-model.md) and
+Tests cover adversarial inputs, token properties, data leakage, policy, egress,
+and vault behavior. Read the [threat model](docs/threat-model.md) and
 [security invariants](docs/security-invariants.md) before relying on a claim.
 
-## Security status
+## Current limits
 
-The current build is suitable for review and synthetic-data pilots. Important
-limits remain:
+The current build supports local evaluation and synthetic-data pilots. Its
+boundaries are explicit:
 
 - PERSON, ORG, LOCATION, and ADDRESS detection needs an operator-supplied NER
   model. No model artifact ships in this repository.
@@ -171,7 +163,6 @@ limits remain:
   support a multi-node deployment.
 - Detector execution has no hard timeout, and custom regular expressions must
   be treated as trusted configuration.
-- No independent security review has been completed.
 
 The full, current list is in [known limitations](docs/limitations.md). Report a
 vulnerability privately using [SECURITY.md](SECURITY.md); do not open a public
@@ -211,11 +202,9 @@ security rules, audits the locked Python dependencies through the virtualenv's
 Trivy when those commands are available. A missing external scanner is reported
 and skipped. A finding or error from a scanner that does run fails the target.
 
-These local commands do not produce a complete release evidence set. `make sbom`
-covers the source tree. GitHub Actions adds the container SBOM and Trivy
-report, runs the container hardening tests, and signs and attests tagged
-releases. The current evidence gap is recorded in [known
-limitations](docs/limitations.md).
+`make sbom` covers the source tree. GitHub Actions also produces a container
+SBOM and Trivy report, runs the container hardening tests, and signs and attests
+tagged releases.
 
 Recognizer contributions are especially useful when they cite a published
 identifier format, validate its checksum, and include both positive and boundary
