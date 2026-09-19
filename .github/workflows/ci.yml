@@ -207,10 +207,37 @@ jobs:
           image-ref: secure-ai-gateway:ci
           format: json
           output: dist/trivy.json
+          scanners: vuln
           severity: CRITICAL,HIGH
-          exit-code: "1"        # CRITICAL and HIGH block; see security-exceptions.yaml
+          exit-code: "0"
+
+      - name: enforce image vulnerability policy
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("dist/trivy.json").read_text(encoding="utf-8"))
+          findings = []
+          for result in report.get("Results") or []:
+              for finding in result.get("Vulnerabilities") or []:
+                  if finding.get("Severity") in {"CRITICAL", "HIGH"}:
+                      findings.append(finding)
+
+          for finding in findings:
+              package = finding.get("PkgName", "unknown")
+              installed = finding.get("InstalledVersion", "unknown")
+              fixed = finding.get("FixedVersion") or "no fix published"
+              cve = finding.get("VulnerabilityID", "unknown")
+              severity = finding.get("Severity", "UNKNOWN")
+              print(f"::error::{severity} {cve}: {package} {installed}; fixed in {fixed}")
+
+          if findings:
+              raise SystemExit(f"{len(findings)} blocking image vulnerability finding(s)")
+          PY
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: container-evidence
           path: dist/
