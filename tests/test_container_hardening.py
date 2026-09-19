@@ -188,9 +188,11 @@ def _post(payload: dict, key: str = API_KEY) -> tuple[int, dict, dict]:
     )
     try:
         with urllib.request.urlopen(request, timeout=15) as response:  # noqa: S310
-            return response.status, json.loads(response.read()), dict(response.headers)
+            headers = {name.lower(): value for name, value in response.headers.items()}
+            return response.status, json.loads(response.read()), headers
     except urllib.error.HTTPError as exc:
-        return exc.code, json.loads(exc.read()), dict(exc.headers)
+        headers = {name.lower(): value for name, value in exc.headers.items()}
+        return exc.code, json.loads(exc.read()), headers
 
 
 def _logs() -> str:
@@ -258,8 +260,8 @@ class TestRequestPathInTheContainer:
             }
         )
         assert status == 200
-        assert int(headers["X-Entities-Detected"]) >= 2
-        assert int(headers["X-Tokens-Restored"]) >= 2
+        assert int(headers["x-entities-detected"]) >= 2
+        assert int(headers["x-tokens-restored"]) >= 2
         # The mock provider echoes what it received, so the restored response
         # proves the round trip completed inside the container.
         assert CANARY_EMAIL in body["choices"][0]["message"]["content"]
@@ -295,7 +297,7 @@ class TestRequestPathInTheContainer:
             }
         )
         assert status == 200
-        assert headers["X-Tokens-Refused"] == "1"
+        assert headers["x-tokens-refused"] == "1"
         assert forged in body["choices"][0]["message"]["content"]
 
 

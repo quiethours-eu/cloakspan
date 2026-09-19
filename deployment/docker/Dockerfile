@@ -36,7 +36,8 @@ FROM ${BASE_REF} AS runtime
 # runtime layer carries no apt cache.
 RUN apt-get update \
  && apt-get upgrade -y \
- && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/* \
+ && rm -f /usr/bin/apt /usr/bin/apt-get /usr/bin/apt-cache
 
 # Non-root, no login shell, no home directory to write into.
 RUN groupadd --gid 10001 gateway \
