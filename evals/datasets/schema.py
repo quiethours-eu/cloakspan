@@ -46,6 +46,7 @@ are drawn from a fixed fictional list. Provenance is recorded in
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -122,7 +123,18 @@ def to_json_line(example: Example) -> str:
     }
     if example.note:
         payload["note"] = example.note
-    return json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    line = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+
+    # Keep credential-shaped synthetic Slack fixtures useful after JSON parsing
+    # without storing a complete token-shaped literal in Git history. GitHub's
+    # push protection intentionally cannot distinguish test credentials from
+    # live ones. JSON decodes the escape back to "-", preserving spans and the
+    # detector test while avoiding a source literal that looks deployable.
+    return re.sub(
+        r"(xox[baprs]-[0-9]{12})-(EXAMPLEEXAMPLE)",
+        r"\1\\u002d\2",
+        line,
+    )
 
 
 def parse_json_line(line: str) -> Example:

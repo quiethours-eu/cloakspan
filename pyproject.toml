@@ -30,6 +30,9 @@ classifiers = [
 # and so an operator with no Internet access after install is never blocked
 # on a model download. See docs/adr/0003-detection-architecture.md.
 dependencies = [
+  # Starlette 1.6 still imports an alias deprecated in AnyIO 4.15. Keep the
+  # warning-as-error test policy useful until the upstream import is updated.
+  "anyio>=4.4,<4.15",
   "fastapi>=0.115,<1.0",
   "uvicorn[standard]>=0.30,<1.0",
   "httpx>=0.27,<1.0",
