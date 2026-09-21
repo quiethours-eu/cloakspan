@@ -17,7 +17,7 @@ file.
 | `SAG_VAULT_KEY_V<n>` | none | Versioned root secret used for additive vault-key rotation, for example `SAG_VAULT_KEY_V2`. |
 | `SAG_VAULT_ACTIVE_KEY_VERSION` | highest configured version | Key version used for new vault records. |
 | `SAG_TOKEN_KEY` | ephemeral outside production | Root secret used to derive the token HMAC key, at least 32 bytes. |
-| `SAG_POLICY_PATH` | bundled default policy | Path to a YAML policy file. |
+| `SAG_POLICY_PATH` | bundled default policy | Path to a YAML policy file. The bundled `auto-local.yaml` (`/etc/secure-ai-gateway/policies/auto-local.yaml` in the container) sends every request with detected personal data to `local`. |
 | `SAG_EXTERNAL_BASE_URL` | mock outside production | OpenAI-compatible `/v1` base URL for the `external` destination. |
 | `SAG_EXTERNAL_API_KEY` | none | Credential for the external provider. |
 | `SAG_EXTERNAL_MODEL` | request model | Optional model override for the external provider. |
