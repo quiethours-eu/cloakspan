@@ -42,6 +42,8 @@ class DictionaryDetector:
         terms: list[str],
         entity_type: str = "CUSTOMER_TERM",
         name: str = "customer_dictionary",
+        *,
+        case_sensitive: bool = False,
     ) -> None:
         self.name = name
         self.entity_type = entity_type
@@ -53,7 +55,8 @@ class DictionaryDetector:
             # \b is wrong for terms that start or end with punctuation, so we
             # use lookarounds on word characters instead.
             self._pattern = re.compile(
-                rf"(?<!\w)(?:{alternation})(?!\w)", re.IGNORECASE | re.UNICODE
+                rf"(?<!\w)(?:{alternation})(?!\w)",
+                re.UNICODE | (0 if case_sensitive else re.IGNORECASE),
             )
 
     def detect(self, text: str) -> list[Span]:
@@ -80,13 +83,20 @@ class CustomRegexDetector:
     quantifiers is a denial-of-service primitive, not a detection rule.
     """
 
-    def __init__(self, pattern: str, entity_type: str, name: str | None = None) -> None:
+    def __init__(
+        self,
+        pattern: str,
+        entity_type: str,
+        name: str | None = None,
+        *,
+        case_sensitive: bool = True,
+    ) -> None:
         self.name = name or f"custom_regex:{entity_type}"
         self.entity_type = entity_type.upper()
-        self._pattern = self._compile_safely(pattern)
+        self._pattern = self._compile_safely(pattern, case_sensitive=case_sensitive)
 
     @staticmethod
-    def _compile_safely(pattern: str) -> re.Pattern[str]:
+    def _compile_safely(pattern: str, *, case_sensitive: bool = True) -> re.Pattern[str]:
         if len(pattern) > MAX_PATTERN_LENGTH:
             raise UnsafePatternError(f"pattern exceeds {MAX_PATTERN_LENGTH} characters")
 
@@ -102,7 +112,7 @@ class CustomRegexDetector:
             )
 
         try:
-            return re.compile(pattern)
+            return re.compile(pattern, 0 if case_sensitive else re.IGNORECASE)
         except re.error as exc:
             raise UnsafePatternError(f"invalid regular expression: {exc}") from exc
 

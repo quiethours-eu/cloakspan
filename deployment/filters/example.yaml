@@ -1,0 +1,28 @@
+# Copy and adapt for your organisation, then set SAG_FILTERS_PATH to its path.
+version: 1
+filters:
+  - name: employee-ids
+    entity_type: EMPLOYEE_ID
+    match:
+      type: regex
+      pattern: '\bEMP-[0-9]{6}\b'
+      case_sensitive: true
+    action: transform
+
+  - name: confidential-projects
+    entity_type: CONFIDENTIAL_PROJECT
+    match:
+      type: dictionary
+      terms:
+        - Project Aurora
+        - Project Meridian
+      case_sensitive: false
+    action: block
+
+  - name: internal-case-numbers
+    entity_type: INTERNAL_CASE
+    match:
+      type: regex
+      pattern: '\bCASE-[A-Z]{2}-[0-9]{8}\b'
+    action: route_local
+    destination: local

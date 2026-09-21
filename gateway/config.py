@@ -39,6 +39,7 @@ from gateway.transformations.engine import TransformationEngine
 from gateway.transformations.tokens import TokenMinter
 from gateway.vault.store import KeyRing, SurrogateVault
 from recognizers.custom.customer_rules import CustomRegexDetector, DictionaryDetector
+from recognizers.custom.filters import FilterConfigurationError, FilterSet
 
 logger = logging.getLogger("gateway.config")
 
@@ -230,10 +231,12 @@ class Settings:
 
     dictionary_terms: tuple[str, ...] = ()
     custom_patterns: tuple[tuple[str, str], ...] = ()
+    filters_path: Path | None = None
 
     @classmethod
     def from_env(cls) -> Settings:
         policy = os.environ.get("SAG_POLICY_PATH")
+        filters_path = os.environ.get("SAG_FILTERS_PATH")
         terms = os.environ.get("SAG_DICTIONARY_TERMS", "")
         patterns_raw = os.environ.get("SAG_CUSTOM_PATTERNS", "")
 
@@ -247,6 +250,7 @@ class Settings:
             bind_host=os.environ.get("SAG_BIND_HOST", "0.0.0.0"),  # noqa: S104
             port=int(os.environ.get("SAG_PORT", "8080")),
             policy_path=Path(policy) if policy else DEFAULT_POLICY_PATH,
+            filters_path=Path(filters_path) if filters_path else None,
             vault_ttl_seconds=int(os.environ.get("SAG_VAULT_TTL_SECONDS", "3600")),
             max_input_chars=int(os.environ.get("SAG_MAX_INPUT_CHARS", "65536")),
             max_request_bytes=int(os.environ.get("SAG_MAX_REQUEST_BYTES", "1048576")),
@@ -274,8 +278,20 @@ class Settings:
         )
 
 
-def build_detectors(settings: Settings) -> list[object]:
+def _load_filters(settings: Settings) -> FilterSet | None:
+    if settings.filters_path is None:
+        return None
+    try:
+        return FilterSet.from_yaml(settings.filters_path)
+    except FilterConfigurationError as exc:
+        raise ConfigurationError(f"SAG_FILTERS_PATH: {exc}") from None
+
+
+def build_detectors(settings: Settings, *, filters: FilterSet | None = None) -> list[object]:
     detectors = list(default_detectors())
+    filters = filters if filters is not None else _load_filters(settings)
+    if filters is not None:
+        detectors.extend(filters.detectors)
 
     # NER is enabled by pointing at a verified local model directory. When the
     # path is set but unusable this raises rather than degrading quietly:
@@ -426,6 +442,9 @@ def build_key_store() -> ApiKeyStore:
 
 def build_pipeline(settings: Settings, audit_sink: AuditSink | None = None) -> SecurityPipeline:
     policy = PolicyEngine.from_yaml(settings.policy_path)
+    filters = _load_filters(settings)
+    if filters is not None:
+        policy = policy.with_rules(filters.rules, version_suffix=f"filters:{filters.fingerprint}")
     vault = SurrogateVault(
         key_ring=build_key_ring(),
         ttl_seconds=settings.vault_ttl_seconds,
@@ -435,7 +454,7 @@ def build_pipeline(settings: Settings, audit_sink: AuditSink | None = None) -> S
     )
 
     return SecurityPipeline(
-        detectors=build_detectors(settings),
+        detectors=build_detectors(settings, filters=filters),
         policy=policy,
         transformer=TransformationEngine(minter, vault),
         restorer=RestorationEngine(vault),
