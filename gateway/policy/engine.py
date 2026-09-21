@@ -107,9 +107,7 @@ class PolicyEngine:
         combined = self.rules + rules
         if len({rule.name for rule in combined}) != len(combined):
             raise PolicyError("filter rule name conflicts with an existing policy rule")
-        return PolicyEngine(
-            combined, f"{self.version}+{version_suffix}", self._default_destination
-        )
+        return PolicyEngine(combined, f"{self.version}+{version_suffix}", self._default_destination)
 
     @property
     def required_destinations(self) -> frozenset[str]:
