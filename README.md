@@ -20,6 +20,10 @@ where you need to control what reaches a model. You run the infrastructure and
 choose the model endpoints and handling rules. Custom filters work with your
 own data formats, regardless of country.
 
+Some data shouldn't leave the building even in disguise. The
+[auto-local policy](#keep-personal-data-in-the-building) sends any request with
+detected personal data to a model you host instead.
+
 The offline demo prints the exact request seen by a deterministic mock provider
 and checks that the gateway refuses to restore a forged token.
 
@@ -106,6 +110,37 @@ curl -fsS http://127.0.0.1:8080/readyz
 Compose binds to loopback by default. Put a TLS reverse proxy in front of it if
 you expose it beyond the host. See [configuration](docs/configuration.md) before
 changing the egress or private-network settings.
+
+## Keep personal data in the building
+
+Some GDPR assessments end with a flat rule: personal data does not go to a
+third-party model, not even as a placeholder. The auto-local policy is built
+for that rule. Credentials are still blocked. A request containing detected
+personal data, or a match from your filters file, goes to your local model. The
+external provider only receives requests with none of that in them.
+
+Switch it on in `.env`:
+
+```bash
+SAG_POLICY_PATH=/etc/secure-ai-gateway/policies/auto-local.yaml
+SAG_LOCAL_BASE_URL=http://host.docker.internal:11434/v1
+SAG_LOCAL_MODEL=your-local-model
+```
+
+That URL is Ollama running on the Docker host. vLLM, llama.cpp's server, and
+other OpenAI-compatible `/v1` endpoints work the same way. `SAG_LOCAL_MODEL`
+replaces the model name your app sends, so the same client code works for both
+destinations.
+
+In production the gateway won't start until both destinations are configured.
+When the local model is down, its requests fail. They are never retried against
+the external provider.
+
+Names, organizations, places, and street addresses count once you configure an
+NER model with `SAG_NER_MODEL_PATH`. Until then, a prompt whose only personal
+detail is a name looks clean and goes out. The comments in
+[`auto-local.yaml`](deployment/policies/auto-local.yaml) show how to keep every
+request local instead.
 
 ## What it catches
 
