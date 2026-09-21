@@ -26,6 +26,30 @@ and checks that the gateway refuses to restore a forged token.
 
 [![Cloakspan proof-of-concept request flow](docs/assets/poc-schematic.svg)](docs/assets/poc-schematic.svg)
 
+## Input and output example
+
+With the default email policy, a request passes through the gateway like this:
+
+```text
+Your app sends:
+  Write a reminder to alex@example.com about invoice 42.
+
+The model receives:
+  Write a reminder to <EMAIL_ADDRESS:v1:a13f72c84e0956b0d32a84719fc65e02> about invoice 42.
+
+Example model reply:
+  Please remind <EMAIL_ADDRESS:v1:a13f72c84e0956b0d32a84719fc65e02> to pay invoice 42.
+
+Your app receives:
+  Please remind alex@example.com to pay invoice 42.
+```
+
+The model sees a token in place of the email address. If it includes that token
+in its reply, Cloakspan restores the address before returning the response.
+The token above is illustrative; actual values depend on the gateway key,
+tenant, conversation, and detected value. Custom filters use the same flow
+when their action is `transform`.
+
 ## Why it exists
 
 Plain redaction removes information the model needs. Predictable placeholders
