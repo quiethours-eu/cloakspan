@@ -10,6 +10,9 @@ project remains alpha.
 
 ### Added
 
+- Versioned YAML custom filters via `SAG_FILTERS_PATH`, combining regex or
+  dictionary matching with transformation, blocking, or local routing in one
+  definition. Includes startup validation, audit fingerprints, and examples.
 - Cloakspan logo, app icon, social preview, and brand usage guide.
 - `cloakspan` CLI alias alongside the existing `secure-ai-gateway` command.
 

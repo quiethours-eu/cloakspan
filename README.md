@@ -6,18 +6,20 @@
 
 **Send context to the model. Keep identities local.**
 
-Cloakspan is a self-hosted privacy gateway for teams worldwide. It sits between
-your app and an OpenAI-compatible model,
-detects sensitive values, applies your policy, replaces approved values with
-scoped tokens, and restores only tokens created for the same request.
+Cloakspan is a self-hosted privacy gateway that sits between your app and an
+OpenAI-compatible model. It detects sensitive values and applies your policy
+before forwarding a request. Values marked for transformation become scoped
+tokens; the gateway restores them in the response only if it created those
+tokens for that request.
 
 [![Status: alpha](https://img.shields.io/badge/status-alpha-f59e0b)](#current-limits)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2ea44f)](LICENSE)
 
 Use it for customer support, internal assistants, and other text workflows
-where sensitive data needs a policy before it reaches a model. You choose the
-infrastructure, model endpoints, and handling rules.
+where you need to control what reaches a model. You run the infrastructure and
+choose the model endpoints and handling rules. Custom filters work with your
+own data formats, regardless of country.
 
 The offline demo prints the exact request seen by a deterministic mock provider
 and checks that the gateway refuses to restore a forged token.
@@ -114,7 +116,7 @@ changing the egress or private-network settings.
 | Country-specific identifiers | Latvian, Lithuanian, and Estonian personal codes; checksum validation where the format supports it |
 | Phone numbers | Contextual international E.164 numbers and national formats for Latvia, Lithuania, and Estonia |
 | Credentials | AWS keys, private keys, JWTs, OpenAI and Anthropic keys, GitHub and Slack tokens |
-| Customer data | Exact dictionary terms and reviewed custom regular expressions |
+| Customer data | Unified YAML filters with dictionary/regex matching and transform, block, or local-routing actions |
 | Optional NER | PERSON, ORG, LOCATION, and ADDRESS through a checksum-verified local model supplied by the operator |
 
 Deterministic detectors work without model downloads. The evaluation harness
@@ -122,13 +124,52 @@ reports precision and recall per entity and language against versioned synthetic
 corpora. The [evaluation report](docs/evaluation-report.md) lists the sample
 sizes, results, and coverage boundaries.
 
-### Global use, explicit coverage
+### Add custom filters
+
+Put your matching rules and actions in one YAML file. For example, this file
+replaces employee IDs with tokens and blocks requests containing a confidential
+project name:
+
+```yaml
+version: 1
+filters:
+  - name: employee-ids
+    entity_type: EMPLOYEE_ID
+    match:
+      type: regex
+      pattern: '\bEMP-[0-9]{6}\b'
+    action: transform
+
+  - name: confidential-projects
+    entity_type: CONFIDENTIAL_PROJECT
+    match:
+      type: dictionary
+      terms: [Project Aurora, Project Meridian]
+    action: block
+```
+
+Save it as `filters.yaml`, set `SAG_FILTERS_PATH` to that file's path, and restart
+the gateway. Docker deployments need the file mounted inside the container.
+Each filter creates its detector and policy rule, so you do not need to edit
+Python code or add a separate policy entry.
+
+Filters also support `route_local`, case sensitivity, priority, and an `enabled`
+switch. They run alongside the built-in detectors and existing custom settings.
+The highest-priority matching policy rule decides how the whole request is
+handled. Invalid filter files stop startup.
+
+See the [example filters](deployment/filters/example.yaml) and
+[configuration guide](docs/configuration.md#unified-custom-filters) for defaults,
+rule precedence, and Docker setup.
+
+### Country and language coverage
 
 The gateway is not tied to a country or model host. Email, payment-card,
 credential, and customer-defined detection can be used across markets; IBAN
 detection applies where that banking standard is used. Country-specific
-identifiers need dedicated recognizers, and language-aware detection depends
-on your configured NER model.
+identifiers need a matching custom filter or dedicated recognizer. Regex filters
+match a format; they do not validate a country's checksum. Language-aware
+detection depends on your configured NER model.
 
 Built-in national ID coverage currently covers Latvia, Lithuania, and Estonia.
 Other national IDs are not detected out of the box. Validate the entity types,
@@ -155,13 +196,13 @@ coverage. Contributions for additional countries and languages are welcome.
   enabled.
 
 Tests cover adversarial inputs, token properties, data leakage, policy, egress,
-and vault behavior. Read the [threat model](docs/threat-model.md) and
-[security invariants](docs/security-invariants.md) before relying on a claim.
+and vault behavior. The [threat model](docs/threat-model.md) and
+[security invariants](docs/security-invariants.md) describe what these controls
+protect and where they stop.
 
 ## Current limits
 
-The current build supports local evaluation and synthetic-data pilots. Its
-boundaries are explicit:
+The current build supports local evaluation and synthetic-data pilots:
 
 - PERSON, ORG, LOCATION, and ADDRESS detection needs an operator-supplied NER
   model. No model artifact ships in this repository.

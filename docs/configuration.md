@@ -27,6 +27,7 @@ file.
 | `SAG_EGRESS_ALLOW_PRIVATE` | `false` | Allows private, loopback, and link-local destinations for every provider. This disables the SSRF address control globally. |
 | `SAG_TRUST_ENV_PROXY` | `false` | Allows `HTTP_PROXY`, `HTTPS_PROXY`, and related ambient proxy settings. |
 | `SAG_NER_MODEL_PATH` | none | Directory containing a checksum-verified NER model and manifest. |
+| `SAG_FILTERS_PATH` | none | Path to a versioned YAML file containing custom matchers and actions; see below. |
 | `SAG_DICTIONARY_TERMS` | none | Comma-separated confidential terms. |
 | `SAG_CUSTOM_PATTERNS` | none | Semicolon-separated `ENTITY=regex` rules. Patterns are trusted configuration and currently have no execution timeout. |
 | `SAG_BLOCK_MIXED_SCRIPT` | `false` | Blocks words that mix scripts instead of recording an encoding signal only. |
@@ -37,6 +38,82 @@ file.
 | `SAG_BIND_HOST` | `0.0.0.0` from source; Compose publishes on `127.0.0.1` | Uvicorn bind address. |
 | `SAG_PORT` | `8080` | Uvicorn port. |
 | `SAG_LOG_LEVEL` | `INFO` | Application log level. |
+
+## Unified custom filters
+
+Define identifiers, confidential phrases, or other business data in one YAML
+format, independent of country presets. Copy
+[`deployment/filters/example.yaml`](../deployment/filters/example.yaml), edit it,
+and set `SAG_FILTERS_PATH=/path/to/filters.yaml`. Restart the gateway to load changes.
+
+```yaml
+version: 1
+filters:
+  - name: employee-ids
+    entity_type: EMPLOYEE_ID
+    match:
+      type: regex
+      pattern: '\bEMP-[0-9]{6}\b'
+    action: transform
+
+  - name: confidential-projects
+    entity_type: CONFIDENTIAL_PROJECT
+    match:
+      type: dictionary
+      terms: [Project Aurora, Project Meridian]
+      case_sensitive: false
+    action: block
+```
+
+Each entry creates both a detector and a policy rule. No Python code or separate
+policy entry is needed. `transform` replaces detected values with scoped tokens
+before forwarding and restores them in the response; `block` refuses the request;
+`route_local` transforms and sends it to the `local` destination by default.
+
+| Field | Meaning |
+|---|---|
+| `name` | Unique name, 1–64 ASCII letters, digits, underscores or hyphens; first character must be alphanumeric. Audit rule names use `filter:<name>`. |
+| `entity_type` | Unique label in this file, matching `[A-Z][A-Z0-9_]{0,63}`, e.g. `EMPLOYEE_ID`. Use a new label to keep handling distinct from existing entities. |
+| `match` | `type: regex` with `pattern`, or `type: dictionary` with a non-empty `terms` list. |
+| `match.case_sensitive` | Defaults to `true` for regex, `false` for dictionary. Regex inline flags also apply. |
+| `action` | `transform` (default), `block`, or `route_local`. |
+| `destination` | Optional provider name for transform/local routing. Transform inherits the policy default. Block must omit this field. |
+| `priority` | Optional integer 0–1000. Defaults: transform 60, local routing 90, block 100. |
+| `enabled` | Boolean, defaults to `true`. Disabled filters are validated but add neither detector nor rule. |
+
+Built-in detectors and the legacy `SAG_DICTIONARY_TERMS` and
+`SAG_CUSTOM_PATTERNS` settings remain active alongside this file. Filters apply
+to all tenants and applications on the gateway. Matching uses the existing
+Unicode-normalized text view and maps replacements back to the original text.
+Dictionary entries are literal, match at word boundaries, and prefer the longest
+term. Regexes match the whole expression, not just a capture group. Custom
+regexes do not add country-specific checksum validation.
+
+Actions use the existing **request-wide policy precedence**: highest priority
+wins; block wins equal-priority ties, then rule name sorts alphabetically.
+For example, the default Baltic local-routing rule (90) outranks a custom
+transform (60). A transform/local decision replaces all detected spans. A rule
+using an existing entity label also applies to detections from other detectors
+with that label. Review priority overrides against your full policy; a higher
+priority can override a lower-priority block. Overlapping detections use the
+gateway's existing span conflict resolution.
+
+Missing files, unknown fields, malformed patterns, duplicate YAML keys, duplicate
+names/entity labels, and unsupported versions stop startup. Regexes are trusted
+operator configuration: the existing length and backtracking-shape checks apply,
+but execution has no hard timeout. Test patterns against representative inputs.
+The filter file's content hash is included in the audit policy version.
+
+For Docker Compose, create `compose.override.yaml` to mount the file read-only:
+
+```yaml
+services:
+  gateway:
+    environment:
+      SAG_FILTERS_PATH: /app/config/filters.yaml
+    volumes:
+      - ./deployment/filters/example.yaml:/app/config/filters.yaml:ro
+```
 
 ## Generate production secrets
 
