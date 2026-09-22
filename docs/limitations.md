@@ -21,6 +21,33 @@ closed.
   handle relevant single-character homoglyphs, fullwidth digits, zero-width
   insertion, and common dash substitutions while preserving offsets.
 
+## GDPR mode (`SAG_LOCAL_ROUTING`)
+
+- `detected` is only as good as detection. Personal data that no detector
+  finds still reaches the external provider in clear: dates of birth, health
+  details, identifiers from countries without a recognizer, names in languages
+  the NER model does not cover, and values deliberately spelled to avoid
+  detection. Only `all` does not depend on detection.
+- The NER model's languages come from its manifest and are printed in the
+  startup line. The gateway does not check them against the traffic.
+- NER, dictionary, filter, and custom-pattern detectors see the normalised
+  text but not the confusable-folded view that the built-in structured
+  detectors use, so a homoglyph substitution inside a name or a custom term can
+  go undetected.
+- The local destination is checked by address, not by who runs it. A proxy on
+  a private address that relays to a cloud API passes the check.
+- When two detections partly overlap, conflict resolution keeps one span and
+  drops the other, so the part of the dropped value outside the kept span is
+  sent to the local model unchanged.
+- The `model` field is not inspected. Under `detected`, a clean request
+  forwards the client's model name to the external provider unless
+  `SAG_EXTERNAL_MODEL` replaces it.
+- A request that fails, for example because the local model is unreachable,
+  writes no audit event, so the audit stream cannot show on its own that
+  failed requests never went external.
+- There is no detector timeout. A detector that hangs holds the request, and
+  nothing is forwarded until it returns.
+
 ## API and runtime
 
 - Only a strict text subset of `POST /v1/chat/completions` is supported.

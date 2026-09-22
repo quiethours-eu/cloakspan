@@ -19,6 +19,7 @@ import re
 import secrets
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from gateway.audit.events import AuditSink, JsonLogSink
 from gateway.auth.keys import KEY_PREFIX, ApiKey, ApiKeyStore, hash_key
@@ -32,6 +33,7 @@ from gateway.detectors.deterministic import default_detectors
 from gateway.detectors.ner import build_ner_detector
 from gateway.inspection.pipeline import SecurityPipeline
 from gateway.policy.engine import PolicyEngine
+from gateway.policy.local_routing import LocalRouting
 from gateway.restoration.engine import RestorationEngine
 from gateway.routing.base import MockProvider, OpenAICompatibleProvider, ProviderAdapter
 from gateway.routing.egress import policy_for
@@ -72,6 +74,19 @@ class ConfigurationError(Exception):
 
 def _is_production() -> bool:
     return os.environ.get("SAG_ENVIRONMENT", "").lower() in ("prod", "production")
+
+
+def _local_routing_from_env() -> LocalRouting:
+    """SAG_LOCAL_ROUTING, parsed strictly.
+
+    Stricter than the booleans in this module on purpose: a typo stops startup
+    rather than reading as ``off``, because the operator would otherwise believe
+    the mode is on while requests are routed exactly as before.
+    """
+    try:
+        return LocalRouting.parse(os.environ.get("SAG_LOCAL_ROUTING", ""))
+    except ValueError as exc:
+        raise ConfigurationError(str(exc)) from None
 
 
 def _decode_secret(name: str, raw: str) -> bytes:
@@ -205,6 +220,13 @@ class Settings:
     local_base_url: str = ""
     local_model: str = ""
 
+    #: SAG_LOCAL_ROUTING ("GDPR mode"). ``off`` leaves routing to the policy;
+    #: ``detected`` sends every request with a detected span only to `local`;
+    #: ``all`` sends every request there and builds no external client. With
+    #: either on, SAG_LOCAL_BASE_URL is required and must resolve to loopback
+    #: or a private network. See gateway/policy/local_routing.py.
+    local_routing: LocalRouting = LocalRouting.OFF
+
     # Opt-in only. See OpenAICompatibleProvider for why the default is False.
     trust_env_proxy: bool = False
 
@@ -261,6 +283,7 @@ class Settings:
             external_model=os.environ.get("SAG_EXTERNAL_MODEL", ""),
             local_base_url=os.environ.get("SAG_LOCAL_BASE_URL", ""),
             local_model=os.environ.get("SAG_LOCAL_MODEL", ""),
+            local_routing=_local_routing_from_env(),
             trust_env_proxy=os.environ.get("SAG_TRUST_ENV_PROXY", "").lower()
             in ("1", "true", "yes"),
             ner_model_path=os.environ.get("SAG_NER_MODEL_PATH", ""),
@@ -316,7 +339,8 @@ def build_providers(
     """Assemble the destination map that policy rules refer to by name.
 
     'mock' is always present: it is what makes `make demo` and the whole test
-    suite work with no credentials and no network.
+    suite work with no credentials and no network. Under SAG_LOCAL_ROUTING=all
+    'external' is absent altogether.
     """
     providers: dict[str, ProviderAdapter] = {"mock": MockProvider()}
     configured_destinations = {"mock"}
@@ -324,7 +348,22 @@ def build_providers(
     allowed_hosts = frozenset(h.lower() for h in settings.egress_allowlist)
     allow_private = settings.egress_allow_private or None
 
-    if settings.external_base_url:
+    mode = settings.local_routing
+    if mode is not LocalRouting.OFF and not settings.local_base_url:
+        # In every environment: with no URL, `local` would be the offline mock,
+        # the same object as an unconfigured `external`, and the mode would
+        # keep requests "local" by name only.
+        raise ConfigurationError(
+            f"SAG_LOCAL_ROUTING={mode} needs SAG_LOCAL_BASE_URL: the local destination "
+            "must be your own model, not the offline mock"
+        )
+
+    if mode is LocalRouting.ALL:
+        # Not built, and not aliased to the mock either: with no 'external'
+        # key, a regression that selected it would meet the unknown-destination
+        # error rather than a client.
+        pass
+    elif settings.external_base_url:
         providers["external"] = OpenAICompatibleProvider(
             base_url=settings.external_base_url,
             api_key=settings.external_api_key or None,
@@ -349,10 +388,23 @@ def build_providers(
             model_override=settings.local_model or None,
             timeout_seconds=settings.request_timeout_seconds,
             name="local",
-            trust_env=settings.trust_env_proxy,
+            # With SAG_LOCAL_ROUTING on, no ambient proxy may sit between the
+            # gateway and the model the mode keeps requests on, whatever
+            # SAG_TRUST_ENV_PROXY says.
+            trust_env=settings.trust_env_proxy and mode is LocalRouting.OFF,
+            # Proxies only. SAG_TRUST_ENV_PROXY also lets httpx read
+            # SSL_CERT_FILE and SSL_CERT_DIR, which is how an https model behind
+            # an internal CA is trusted, and the mode keeps that as it was.
+            trust_env_certs=settings.trust_env_proxy,
             # `local` permits private addresses by default: routing to a model
-            # on loopback is the entire point of the route_local action.
-            egress=policy_for("local", allowed_hosts=allowed_hosts),
+            # on loopback is the entire point of the route_local action. With
+            # the mode on it may resolve *only* to them, checked at startup and
+            # again on every request.
+            egress=policy_for(
+                "local",
+                allowed_hosts=allowed_hosts,
+                require_private_network=mode is not LocalRouting.OFF,
+            ),
         )
         configured_destinations.add("local")
     else:
@@ -440,11 +492,75 @@ def build_key_store() -> ApiKeyStore:
     return store
 
 
+def _require_ner_for_detected(settings: Settings, detectors: list[object]) -> None:
+    """Refuse SAG_LOCAL_ROUTING=detected without NER, in every environment.
+
+    ``detected`` is only as good as detection, and without a model, names,
+    organisations, places, and street addresses are not detected at all. A
+    request whose only personal data is a name would look clean and go to the
+    external provider while the operator believes the mode covers it.
+    """
+    if settings.local_routing is not LocalRouting.DETECTED:
+        return
+    if any(getattr(detector, "name", "") == "ner" for detector in detectors):
+        return
+    raise ConfigurationError(
+        "SAG_LOCAL_ROUTING=detected needs an NER model: without one, names, organisations, "
+        "places and street addresses are not detected, so a request whose only personal "
+        "data is a name would reach the external provider. Set SAG_NER_MODEL_PATH, or use "
+        "SAG_LOCAL_ROUTING=all to send every request to the local model."
+    )
+
+
+def _log_local_routing(
+    settings: Settings,
+    policy: PolicyEngine,
+    detectors: list[object],
+    providers: dict[str, ProviderAdapter],
+) -> None:
+    """One startup line that shows the operator the mode is actually on.
+
+    Hostnames only: a base URL can carry a path or userinfo, and neither belongs
+    in a log (SI-11, SI-12). Written only while the mode is on, so a deployment
+    with it off logs exactly what it logged before.
+    """
+    ner = next((d for d in detectors if getattr(d, "name", "") == "ner"), None)
+    manifest = getattr(ner, "manifest", None)
+    if ner is None:
+        ner_model = "not configured"
+    elif manifest is None:
+        ner_model = "configured, no manifest"
+    else:
+        languages = ", ".join(map(str, manifest.languages))
+        ner_model = f"{manifest.name} {manifest.version} (languages {languages})"
+
+    if "external" not in providers:
+        external = "not built"
+    elif providers["external"] is providers["mock"]:
+        external = "mock"
+    else:
+        external = urlsplit(settings.external_base_url).hostname
+
+    logger.info(
+        "SAG_LOCAL_ROUTING=%s: policy %s; NER model %s; local %s (private network "
+        "required), model %s; external %s",
+        settings.local_routing,
+        policy.version,
+        ner_model,
+        urlsplit(settings.local_base_url).hostname,
+        settings.local_model or "as requested by the client",
+        external,
+    )
+
+
 def build_pipeline(settings: Settings, audit_sink: AuditSink | None = None) -> SecurityPipeline:
     policy = PolicyEngine.from_yaml(settings.policy_path)
     filters = _load_filters(settings)
     if filters is not None:
         policy = policy.with_rules(filters.rules, version_suffix=f"filters:{filters.fingerprint}")
+    # Last, so no policy rule, filter, or legacy pattern can route around it.
+    # With SAG_LOCAL_ROUTING off this returns the same policy object.
+    policy = policy.with_local_routing(settings.local_routing)
     vault = SurrogateVault(
         key_ring=build_key_ring(),
         ttl_seconds=settings.vault_ttl_seconds,
@@ -452,17 +568,21 @@ def build_pipeline(settings: Settings, audit_sink: AuditSink | None = None) -> S
     minter = TokenMinter(
         secret_key=derive_key(_root_secret_from_env("SAG_TOKEN_KEY"), TOKEN_KEY_INFO)
     )
+    detectors = build_detectors(settings, filters=filters)
+    _require_ner_for_detected(settings, detectors)
+    providers = build_providers(settings, required_destinations=policy.required_destinations)
 
-    return SecurityPipeline(
-        detectors=build_detectors(settings, filters=filters),
+    pipeline = SecurityPipeline(
+        detectors=detectors,
         policy=policy,
         transformer=TransformationEngine(minter, vault),
         restorer=RestorationEngine(vault),
-        providers=build_providers(
-            settings,
-            required_destinations=policy.required_destinations,
-        ),
+        providers=providers,
         audit_sink=audit_sink or JsonLogSink(),
         max_input_chars=settings.max_input_chars,
         block_mixed_script=settings.block_mixed_script,
+        local_routing=settings.local_routing,
     )
+    if settings.local_routing is not LocalRouting.OFF:
+        _log_local_routing(settings, policy, detectors, providers)
+    return pipeline

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
 #: Fields we recognise and deliberately refuse, mapped to the reason. Listed
 #: explicitly so the error tells an integrator *why*, and so adding support for
@@ -117,6 +117,37 @@ class ChatCompletionRequest(BaseModel):
         payload = self.model_dump(exclude_none=True)
         payload.pop("stream", None)
         return payload
+
+
+#: The type this model gives each top-level field other than ``messages``.
+_REQUEST_FIELD_TYPES: dict[str, TypeAdapter[Any]] = {
+    name: TypeAdapter(field.annotation)
+    for name, field in ChatCompletionRequest.model_fields.items()
+    if name != "messages"
+}
+
+
+def accepts_request_fields(payload: dict[str, Any]) -> bool:
+    """Whether every top-level field but ``messages`` is one this model accepts.
+
+    For code that calls ``SecurityPipeline`` directly, without
+    :func:`parse_chat_completion_request` in front of it. The pipeline inspects
+    none of these fields and forwards them as given, which is safe only while
+    each is a field named here and holds the type given to it: a model name, a
+    number, a flag, or a named service tier. Anything else could carry text
+    that no detector saw (SI-01).
+    """
+    for name, value in payload.items():
+        if name == "messages":
+            continue
+        field_type = _REQUEST_FIELD_TYPES.get(name)
+        if field_type is None:
+            return False
+        try:
+            field_type.validate_python(value)
+        except ValidationError:
+            return False
+    return True
 
 
 def _describe_pydantic_error(error: ValidationError) -> RequestRejected:

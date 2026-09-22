@@ -93,6 +93,7 @@ class TestTheUpstreamIsConfigurable:
             "SAG_POLICY_PATH",
             "SAG_VAULT_TTL_SECONDS",
             "SAG_EGRESS_ALLOWLIST",
+            "SAG_LOCAL_ROUTING",
         ],
     )
     def test_documented_settings_are_actually_read(self, variable):
@@ -235,6 +236,27 @@ class TestPublishedLimitationsAreTrue:
         assert "alpha" in lowered
         assert "[known limitations]" in lowered
         assert "independent security review" not in lowered
+
+    def test_readme_presents_gdpr_mode_honestly(self):
+        """GDPR mode is a routing rule, and the README must describe it as one.
+
+        The name is the one people search for. What the mode does -- keep
+        requests on the operator's own model -- is what the code enforces and
+        the tests check, so the README may promise that and nothing broader.
+        """
+        for required in ("## GDPR mode", "SAG_LOCAL_ROUTING=detected", "SAG_LOCAL_ROUTING=all"):
+            assert required in README, f"the README must show {required!r}"
+
+        lowered = README.lower()
+        for phrase in (
+            "anonymis",
+            "anonymiz",
+            "gdpr compliant",
+            "gdpr-compliant",
+            "gdpr compliance",
+            "compliant with",
+        ):
+            assert phrase not in lowered, f"the README must not say {phrase!r}"
 
     def test_streaming_is_documented_as_unsupported_and_is(self, client_factory=None):
         lowered = LIMITATIONS_DOCS.lower()

@@ -24,14 +24,18 @@ from hypothesis import strategies as st
 
 from gateway.api.app import create_app
 from gateway.api.schema import (
+    ACCEPTED_ROLES,
     MAX_MESSAGES,
     UNINSPECTABLE_FIELDS,
     UNINSPECTABLE_MESSAGE_FIELDS,
     ChatCompletionRequest,
+    ChatMessage,
     RequestRejected,
+    accepts_request_fields,
     parse_chat_completion_request,
 )
 from gateway.config import Settings
+from gateway.inspection.pipeline import INSPECTED_INPUT_ROLES, INSPECTED_MESSAGE_FIELDS
 from gateway.transformations.tokens import TOKEN_PATTERN
 
 from .conftest import TEST_API_KEY
@@ -350,3 +354,52 @@ class TestErrorsCarryNoContent:
         response = client.post("/v1/chat/completions", json=payload, headers=auth())
         assert response.status_code == 422
         assert CANARY not in json.dumps(response.json())
+
+
+# ---------------------------------------------------------------------------
+# Direct callers of the pipeline
+# ---------------------------------------------------------------------------
+
+
+class TestDirectCallersGetTheSameContract:
+    """``SecurityPipeline.process`` with no schema in front of it.
+
+    The pipeline copies the request it is given and inspects message `content`
+    only, so it has to refuse what this schema refuses. The leakage evidence is
+    ``evals/leakage/test_leakage_regression.py::TestFailClosed``.
+    """
+
+    def test_the_pipeline_reads_the_message_fields_and_roles_the_schema_accepts(self):
+        assert INSPECTED_MESSAGE_FIELDS == set(ChatMessage.model_fields)
+        assert INSPECTED_INPUT_ROLES == ACCEPTED_ROLES
+
+    @pytest.mark.parametrize(
+        "fields",
+        [
+            {},
+            {"model": "m"},
+            {"temperature": 0.2, "top_p": 1, "n": 1, "seed": 7, "logprobs": False},
+            {"service_tier": "auto", "stream": False, "max_tokens": None},
+        ],
+    )
+    def test_the_accepted_fields_pass(self, fields):
+        assert accepts_request_fields({"messages": [], **fields})
+
+    @pytest.mark.parametrize(
+        "fields",
+        [
+            {"user": CANARY},
+            {"wibble": 1},
+            {"Model": "m"},
+            {"model": {"name": CANARY}},
+            {"service_tier": CANARY},
+            {"temperature": CANARY},
+            {"stream": CANARY},
+        ],
+    )
+    def test_any_other_field_or_value_fails(self, fields):
+        """Unknown names, and known names holding text the schema would refuse.
+        `service_tier` stays an enum on this path for the reason given in
+        ``TestAcceptedParametersAreForwarded``: it must not be a free-text
+        channel."""
+        assert not accepts_request_fields({"messages": [], **fields})
