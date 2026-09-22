@@ -13,6 +13,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from gateway.api.schema import accepts_request_fields
 from gateway.audit.events import AuditSink, build_event
 from gateway.detectors.base import resolve_conflicts
 from gateway.domain import Action, InspectionResult, RequestContext, Span
@@ -23,6 +24,7 @@ from gateway.normalization import (
     screen_text,
 )
 from gateway.policy.engine import PolicyEngine
+from gateway.policy.local_routing import LOCAL_DESTINATION, LocalRouting, LocalRoutingViolation
 from gateway.restoration.engine import (
     RestorationEngine,
     RestorationOutcome,
@@ -34,6 +36,11 @@ from gateway.transformations.tokens import TokenProvenance
 
 # Message roles accepted by the request schema and inspected on the way in.
 INSPECTED_INPUT_ROLES = ("system", "user", "assistant", "tool")
+
+# The only message fields inspection reads: `role` decides whether a message is
+# inspected, and `content` is what is inspected. The request schema accepts the
+# same two.
+INSPECTED_MESSAGE_FIELDS = frozenset({"role", "content"})
 
 # The ONLY response fields restoration may write into (security invariant
 # SI-03). Restoring into a tool-call name or an id would let a model rewrite
@@ -90,6 +97,7 @@ class SecurityPipeline:
         audit_sink: AuditSink,
         max_input_chars: int = 256_000,
         block_mixed_script: bool = False,
+        local_routing: LocalRouting = LocalRouting.OFF,
     ) -> None:
         self._detectors = detectors
         self._policy = policy
@@ -99,6 +107,9 @@ class SecurityPipeline:
         self._audit = audit_sink
         self._max_input_chars = max_input_chars
         self._block_mixed_script = block_mixed_script
+        #: Checked again here, by provider identity, after the policy engine
+        #: has applied it. See the tripwire in ``process``.
+        self._local_routing = local_routing
 
     @property
     def vault(self):  # noqa: ANN201 - avoids importing the vault module here
@@ -210,6 +221,16 @@ class SecurityPipeline:
         view, and then mapped back so its spans index the **original** text.
         Transformation and forwarding both work on the original from here on.
         """
+        # Refused, not forwarded: `_build_outbound` copies the request, and only
+        # message content is inspected. A top-level field the request schema
+        # would refuse, or a value of a type it would refuse, can carry text no
+        # detector saw (SI-01). The HTTP schema refuses these first; this covers
+        # direct callers. Neither the field nor its value is echoed.
+        if not accepts_request_fields(payload):
+            raise DetectionError(
+                "request has a field this version does not accept; refusing to forward it"
+            )
+
         messages = payload.get("messages") or []
         if not isinstance(messages, list) or not messages:
             raise DetectionError("request contains no messages to inspect")
@@ -221,8 +242,22 @@ class SecurityPipeline:
         for index, message in enumerate(messages):
             if not isinstance(message, dict):
                 raise DetectionError(f"message {index} is not an object")
+            # Likewise for a message field other than the two read below, such
+            # as `name` or `tool_calls`.
+            if not message.keys() <= INSPECTED_MESSAGE_FIELDS:
+                raise DetectionError(
+                    f"message {index} has a field this version does not inspect; "
+                    "refusing to forward it"
+                )
             if message.get("role") not in INSPECTED_INPUT_ROLES:
-                continue
+                # Refused, not skipped: `_build_outbound` copies every message,
+                # so a skipped one would be forwarded without inspection (SI-01).
+                # The HTTP schema refuses these roles first; this covers direct
+                # callers. The role is not echoed -- it is client input.
+                raise DetectionError(
+                    f"message {index} has a role this version does not inspect; "
+                    "refusing to forward it"
+                )
 
             content = message.get("content")
             if not isinstance(content, str):
@@ -348,6 +383,22 @@ class SecurityPipeline:
             raise ProviderError(
                 f"policy selected destination '{decision.destination}', which is not configured",
                 500,
+            )
+
+        # Tripwire for SAG_LOCAL_ROUTING. The engine already moved this request
+        # to `local`; this checks the object about to receive it. It decides
+        # whether the mode requires `local` on its own, from the entity counts
+        # the audit event records, rather than asking the engine's
+        # `requires_local`. A regression in the rewrite or in that predicate
+        # therefore fails closed here instead of reaching another provider.
+        mode = self._local_routing
+        must_be_local = mode is LocalRouting.ALL or (
+            mode is LocalRouting.DETECTED and bool(entity_counts)
+        )
+        if must_be_local and provider is not self._providers.get(LOCAL_DESTINATION):
+            raise LocalRoutingViolation(
+                f"local routing {mode} requires the local destination; "
+                f"rule {decision.rule_name!r} selected {decision.destination!r}"
             )
 
         response = await provider.chat_completion(outbound)

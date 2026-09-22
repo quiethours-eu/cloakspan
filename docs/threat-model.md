@@ -334,6 +334,19 @@ scope. Vault scope alone would still permit replay within one conversation.
 | **Residual** | **Accepted, deliberately.** The only alternative that closes it — randomising per occurrence — makes multi-turn reasoning unusable. Argued in full in `docs/adr/0016-equality-leakage-of-deterministic-pseudonyms.md` |
 | **Consequence** | "Pseudonymisation" must never be marketed as "anonymisation". Pseudonymised data remains personal data |
 
+### T19. Undetected personal data reaches the external provider
+
+| | |
+|---|---|
+| **Asset** | A3 |
+| **Attacker** | None needed. Detectors miss things on ordinary traffic, and a prompt author can also spell a value to avoid detection |
+| **Path** | Personal data that no detector recognises, such as a date of birth, a health detail, a name in a language the NER model does not cover, or a deliberately obfuscated value, is treated as clean text. With the mode off, or under `SAG_LOCAL_ROUTING=detected`, a request with nothing detected goes to `external` with the client's text unchanged |
+| **L / I** | H / H |
+| **Mitigation** | `SAG_LOCAL_ROUTING=all` sends every request that is not blocked to the local model and never builds an external client, so the route no longer depends on detection. `detected` refuses to start without an NER model, so names, organisations, places, and addresses are at least in scope. Confusable folding (T4) covers the structured detectors |
+| **Residual** | **High under `detected` and with the mode off.** Detection recall is measured only on small synthetic corpora, and the NER model's languages are reported at startup but not enforced. Under `all` the external provider receives nothing. Listed in [known limitations](limitations.md) and decided in [ADR-0017](adr/0017-local-routing-mode.md) |
+| **Test** | `evals/leakage/test_leakage_regression.py::TestLocalRoutingMode::test_all_needs_no_detection_to_keep_a_name_local` |
+| **Detection** | None. A value nobody detected leaves no trace in the audit event |
+
 ---
 
 ## Security invariants
@@ -411,8 +424,10 @@ Stated so the coverage claim is checkable rather than assumed:
 | T16 Model-generated data | **none** — output findings do not drive policy |
 | T17 Streaming leakage | SI-02 (refused) |
 | T18 Equality disclosure | **none** — accepted residual, ADR-0016 |
+| T19 Undetected personal data | **none**. Detection quality is not an invariant; `SAG_LOCAL_ROUTING=all` removes the dependency (ADR-0017) |
 
-The three threats with no covering invariant are deliberate: T13 is closed by
-build process rather than runtime behaviour, and T14 and T16 are **genuine gaps**
-that need either an invariant or a written acceptance before Community Edition
-beta.
+The threats with no covering invariant are deliberate or stated: T13 is closed
+by build process rather than runtime behaviour, T18 is an accepted residual
+(ADR-0016), T19 is a limit of detection that no request-path invariant can
+promise away, and T14 and T16 are **genuine gaps** that need either an invariant
+or a written acceptance before Community Edition beta.

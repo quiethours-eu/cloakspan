@@ -26,6 +26,7 @@ from typing import Any
 import yaml
 
 from gateway.domain import Action, InspectionResult, PolicyDecision, RequestContext
+from gateway.policy.local_routing import LocalRouting, apply_local_routing
 
 
 class PolicyError(Exception):
@@ -85,7 +86,14 @@ class Rule:
 
 
 class PolicyEngine:
-    def __init__(self, rules: list[Rule], version: str, default_destination: str) -> None:
+    def __init__(
+        self,
+        rules: list[Rule],
+        version: str,
+        default_destination: str,
+        *,
+        local_routing: LocalRouting = LocalRouting.OFF,
+    ) -> None:
         if not rules:
             raise PolicyError("policy must contain at least one rule")
         # Deterministic evaluation order. BLOCK sorts before other actions at
@@ -97,17 +105,47 @@ class PolicyEngine:
         )
         self.version = version
         self._default_destination = default_destination
+        self._local_routing = local_routing
 
     @property
     def rules(self) -> list[Rule]:
         return list(self._rules)
+
+    @property
+    def local_routing(self) -> LocalRouting:
+        return self._local_routing
 
     def with_rules(self, rules: list[Rule], *, version_suffix: str) -> PolicyEngine:
         """Compose operator filters with the policy and preserve audit provenance."""
         combined = self.rules + rules
         if len({rule.name for rule in combined}) != len(combined):
             raise PolicyError("filter rule name conflicts with an existing policy rule")
-        return PolicyEngine(combined, f"{self.version}+{version_suffix}", self._default_destination)
+        # The mode travels with the policy, so composing after it cannot drop it.
+        return PolicyEngine(
+            combined,
+            f"{self.version}+{version_suffix}",
+            self._default_destination,
+            local_routing=self._local_routing,
+        )
+
+    def with_local_routing(self, mode: LocalRouting) -> PolicyEngine:
+        """Apply SAG_LOCAL_ROUTING on top of every rule composed so far.
+
+        ``off`` returns this same engine, so its version and decisions stay
+        exactly as they were. Any other mode stamps ``+local-routing:<mode>``
+        into the version, which puts it in every audit event and in
+        ``X-Policy-Version``. See gateway/policy/local_routing.py.
+        """
+        if mode is LocalRouting.OFF:
+            return self
+        if self._local_routing is not LocalRouting.OFF:
+            raise PolicyError("local routing is already applied to this policy")
+        return PolicyEngine(
+            self.rules,
+            f"{self.version}+local-routing:{mode}",
+            self._default_destination,
+            local_routing=mode,
+        )
 
     @property
     def required_destinations(self) -> frozenset[str]:
@@ -115,15 +153,24 @@ class PolicyEngine:
 
         Configuration validation uses this at startup.  A policy referring to
         an unavailable provider must not discover that fact only after it has
-        accepted a request containing sensitive data.
+        accepted a request containing sensitive data. Under local routing it
+        includes `local`, and under ``all`` it is only `local`.
         """
-        return frozenset(
-            rule.destination or self._default_destination
-            for rule in self._rules
-            if rule.action is not Action.BLOCK
+        return self._local_routing.required_destinations(
+            frozenset(
+                rule.destination or self._default_destination
+                for rule in self._rules
+                if rule.action is not Action.BLOCK
+            )
         )
 
     def evaluate(self, ctx: RequestContext, inspection: InspectionResult) -> PolicyDecision:
+        # The routing floor sees the decision after every rule has had its say,
+        # so no rule can route around it. With the mode off it is the identity.
+        decision = self._first_match(ctx, inspection)
+        return apply_local_routing(self._local_routing, decision, inspection)
+
+    def _first_match(self, ctx: RequestContext, inspection: InspectionResult) -> PolicyDecision:
         for rule in self._rules:
             matched, entities = rule.matches(ctx, inspection)
             if not matched:

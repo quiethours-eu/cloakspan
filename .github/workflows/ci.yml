@@ -54,6 +54,10 @@ jobs:
           cd "$work_dir"
           export SAG_VAULT_KEY=wheel-smoke-vault-root-secret-0000000000000000
           export SAG_TOKEN_KEY=wheel-smoke-token-root-secret-0000000000000000
+          # GDPR mode must start from a pip install with no file outside the
+          # wheel. An IP literal: no DNS lookup and no connection at startup.
+          export SAG_LOCAL_ROUTING=all
+          export SAG_LOCAL_BASE_URL=http://127.0.0.1:11434/v1
           unset PYTHONPATH
           "$venv_dir/bin/python" - <<'PY'
           import sys
@@ -66,6 +70,7 @@ jobs:
           assert Path(sys.prefix).resolve() in policy_path.parents, policy_path
           assert policy_path.is_file(), policy_path
           assert gateway.main.build() is not None
+          assert gateway.main.app.state.pipeline._policy.version.endswith("+local-routing:all")
           PY
       - name: offline demo
         run: python scripts/demo.py

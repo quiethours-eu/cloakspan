@@ -189,6 +189,7 @@ class OpenAICompatibleProvider:
         timeout_seconds: float = 120.0,
         name: str = "openai_compatible",
         trust_env: bool = False,
+        trust_env_certs: bool | None = None,
         egress: EgressPolicy | None = None,
         max_retries: int = MAX_RETRIES,
         max_response_bytes: int = MAX_RESPONSE_BYTES,
@@ -209,6 +210,11 @@ class OpenAICompatibleProvider:
         # product exists to provide. Operators who genuinely need an egress
         # proxy opt in explicitly via SAG_TRUST_ENV_PROXY.
         self._trust_env = trust_env
+        # Whether the TLS trust store reads SSL_CERT_FILE and SSL_CERT_DIR (see
+        # `verification_context`). It follows `trust_env`, as it would in httpx,
+        # unless set apart: the local provider under SAG_LOCAL_ROUTING refuses
+        # proxies but keeps an operator's CA bundle.
+        self._trust_env_certs = trust_env if trust_env_certs is None else trust_env_certs
         self._egress = egress or EgressPolicy(name=name)
         self._max_retries = max_retries
         self._max_response_bytes = max_response_bytes
@@ -301,7 +307,7 @@ class OpenAICompatibleProvider:
                 # A cached context rather than `verify=True`: the latter rebuilds
                 # the CA bundle every time a client is constructed. Same object
                 # httpx would have built -- see `verification_context`.
-                kwargs["verify"] = verification_context(self._trust_env)
+                kwargs["verify"] = verification_context(self._trust_env_certs)
             else:
                 kwargs["transport"] = self._transport
             self._client = httpx.AsyncClient(**kwargs)

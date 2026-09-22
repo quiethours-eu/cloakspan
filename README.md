@@ -20,9 +20,9 @@ where you need to control what reaches a model. You run the infrastructure and
 choose the model endpoints and handling rules. Custom filters work with your
 own data formats, regardless of country.
 
-Some data shouldn't leave the building even in disguise. The
-[auto-local policy](#keep-personal-data-in-the-building) sends any request with
-detected personal data to a model you host instead.
+Some data shouldn't leave the building even in disguise. Turn on
+[GDPR mode](#gdpr-mode-keep-personal-data-on-your-own-model) and any request
+with detected personal data is answered by a model you host instead.
 
 The offline demo prints the exact request seen by a deterministic mock provider
 and checks that the gateway refuses to restore a forged token.
@@ -111,36 +111,70 @@ Compose binds to loopback by default. Put a TLS reverse proxy in front of it if
 you expose it beyond the host. See [configuration](docs/configuration.md) before
 changing the egress or private-network settings.
 
-## Keep personal data in the building
+## GDPR mode: keep personal data on your own model
 
 Some GDPR assessments end with a flat rule: personal data does not go to a
-third-party model, not even as a placeholder. The auto-local policy is built
-for that rule. Credentials are still blocked. A request containing detected
-personal data, or a match from your filters file, goes to your local model. The
-external provider only receives requests with none of that in them.
+third-party model, not even as a placeholder. GDPR mode turns that rule into one
+setting. When Cloakspan finds personal data in a request, a model you host
+answers it. The external provider only sees requests with nothing detected in
+them, or nothing at all if you choose `all`.
 
-Switch it on in `.env`:
+| The request contains | `SAG_LOCAL_ROUTING=detected` | `SAG_LOCAL_ROUTING=all` |
+|---|---|---|
+| An email address, IBAN, name, or anything else a detector or filter finds | your model | your model |
+| Nothing any detector finds | the external provider | your model |
+| A credential, or anything else your policy blocks | blocked | blocked |
+
+The quickest start is `all`, which works with the Docker image as shipped. Add
+this to `.env`:
 
 ```bash
-SAG_POLICY_PATH=/etc/secure-ai-gateway/policies/auto-local.yaml
+SAG_LOCAL_ROUTING=all
 SAG_LOCAL_BASE_URL=http://host.docker.internal:11434/v1
 SAG_LOCAL_MODEL=your-local-model
 ```
 
-That URL is Ollama running on the Docker host. vLLM, llama.cpp's server, and
-other OpenAI-compatible `/v1` endpoints work the same way. `SAG_LOCAL_MODEL`
-replaces the model name your app sends, so the same client code works for both
-destinations.
+Every request that isn't blocked now goes to your model, and the gateway never
+creates a client for the external provider. The URL is Ollama on the Docker
+host. vLLM, llama.cpp's server, and other OpenAI-compatible `/v1` endpoints work
+the same way. `SAG_LOCAL_MODEL` replaces the model name your app sends, so the
+same client code keeps working.
 
-In production the gateway won't start until both destinations are configured.
-When the local model is down, its requests fail. They are never retried against
-the external provider.
+To keep the external provider for requests with nothing personal in them, use
+`SAG_LOCAL_ROUTING=detected`. It needs an NER model in `SAG_NER_MODEL_PATH`,
+because without one a name looks like ordinary text, and the gateway won't start
+in that mode until it has one. The Docker image doesn't include the NER runtime,
+so `detected` needs an install with the `[ner]` extra. The
+[configuration guide](docs/configuration.md#gdpr-mode-sag_local_routing) covers
+that setup.
 
-Names, organizations, places, and street addresses count once you configure an
-NER model with `SAG_NER_MODEL_PATH`. Until then, a prompt whose only personal
-detail is a name looks clean and goes out. The comments in
-[`auto-local.yaml`](deployment/policies/auto-local.yaml) show how to keep every
-request local instead.
+In both modes your model receives placeholders instead of the detected values,
+and Cloakspan restores them in the reply as usual. The mode is enforced in code,
+on top of your policy and filters:
+
+- Blocking works as before. A credential, or anything a rule or filter blocks,
+  is refused before any model sees it.
+- No rule or filter can send a request with a detection anywhere except your
+  model.
+- `SAG_LOCAL_BASE_URL` must resolve to loopback or a private network, including
+  Tailscale's 100.64.0.0/10 range. The address is checked at startup and again
+  on every request, and proxy variables are ignored for it.
+- When your model is down, the request fails. It is never retried against the
+  external provider.
+
+To confirm it's on, look for the startup log line that names the mode. Each
+successful response also shows how it was routed. A request the mode sent to
+your model comes back with:
+
+```text
+X-Policy-Decision: route_local
+X-Policy-Rule: local-routing:all
+X-Policy-Version: community-default-v1+local-routing:all
+```
+
+`detected` routes what the detectors find. A date of birth or an ID from a
+country without a recognizer can pass as clean text and reach the external
+provider. When that would be a problem, use `all`.
 
 ## What it catches
 

@@ -92,6 +92,13 @@ Each element must be a JSON object. A non-object element is **422
 | `function` | **Rejected — 422 `unsupported_role`** | Legacy |
 | *any other string* | **Rejected — 422 `unsupported_role`** | Reject-unknown |
 
+Code that calls `SecurityPipeline.process` directly, without the HTTP layer,
+gets a `DetectionError` for the same roles, for a message field other than
+`role` and `content`, and for a top-level field, or a value of one, that
+`ChatCompletionRequest` in [schema.py](../gateway/api/schema.py) does not
+accept. Such a request is refused, not forwarded with the part nobody
+inspected.
+
 ### Message fields
 
 | Field | v1 | Inspection |
@@ -139,8 +146,8 @@ These are additions to the OpenAI shape. SDKs ignore them; operators use them.
 | `X-Request-Id` | Correlates with the audit event |
 | `X-Conversation-Id` | Echoes or assigns the conversation scope |
 | `X-Policy-Decision` | `allow` / `transform` / `route_local` / `block` |
-| `X-Policy-Rule` | The rule that decided |
-| `X-Policy-Version` | Declared version, or `sha256:` of the policy file |
+| `X-Policy-Rule` | The rule that decided. `local-routing:detected` or `local-routing:all` when `SAG_LOCAL_ROUTING` moved the request to the local model |
+| `X-Policy-Version` | Declared version, or `sha256:` of the policy file. Ends in `+local-routing:<mode>` while `SAG_LOCAL_ROUTING` is on |
 | `X-Entities-Detected` | Count only, never types-with-values |
 | `X-Tokens-Restored` | |
 | `X-Tokens-Refused` | Sustained non-zero values indicate token-probing; alert on it |
@@ -169,7 +176,7 @@ Every error uses OpenAI's shape so existing SDKs handle it naturally:
 | 422 | `inspection_error` | `unknown_field` | Reject-unknown |
 | 502 | `api_error` | `upstream_error` | Provider failure. Status only — never the provider's response body, which can echo the prompt back |
 | 504 | `api_error` | `upstream_error` | Provider timeout |
-| 500 | `api_error` | — | Unhandled. Returns a request id to quote; the traceback goes to the log only |
+| 500 | `api_error` | — | Unhandled. Returns a request id to quote; the traceback goes to the log only. Also returned when a destination fails its per-request egress check, and when `SAG_LOCAL_ROUTING` requires the local model but another provider was selected. Nothing is sent in either case |
 
 No error message contains prompt content, restored values, or provider
 credentials ([SI-11](security-invariants.md#si-11--no-content-in-observability),

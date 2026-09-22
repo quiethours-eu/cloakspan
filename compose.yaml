@@ -26,7 +26,10 @@ services:
       SAG_VAULT_ACTIVE_KEY_VERSION: "${SAG_VAULT_ACTIVE_KEY_VERSION:-}"
       SAG_TOKEN_KEY: "${SAG_TOKEN_KEY:?Set SAG_TOKEN_KEY in .env (openssl rand -hex 32)}"
       # The bundled policy can select both destinations, so both are required.
-      # They may point to the same OpenAI-compatible endpoint if desired.
+      # They may point to the same OpenAI-compatible endpoint if desired, unless
+      # SAG_LOCAL_ROUTING is on: then the local URL must resolve to loopback or
+      # a private network. Under SAG_LOCAL_ROUTING=all the external client is
+      # never built, although Compose still asks for SAG_EXTERNAL_BASE_URL.
       SAG_EXTERNAL_BASE_URL: "${SAG_EXTERNAL_BASE_URL:?Set the external /v1 base URL}"
       SAG_EXTERNAL_API_KEY: "${SAG_EXTERNAL_API_KEY:-}"
       SAG_EXTERNAL_MODEL: "${SAG_EXTERNAL_MODEL:-}"
@@ -37,6 +40,11 @@ services:
       SAG_TRUST_ENV_PROXY: "${SAG_TRUST_ENV_PROXY:-false}"
       SAG_NER_MODEL_PATH: "${SAG_NER_MODEL_PATH:-}"
       SAG_POLICY_PATH: "${SAG_POLICY_PATH:-}"
+      # off, detected, or all. detected also needs SAG_NER_MODEL_PATH and the
+      # [ner] extra, which this image does not include, so it does not start
+      # here. Listed here because Compose passes only what it lists: a value in
+      # .env alone stays unread.
+      SAG_LOCAL_ROUTING: "${SAG_LOCAL_ROUTING:-off}"
       SAG_DICTIONARY_TERMS: "${SAG_DICTIONARY_TERMS:-}"
       SAG_CUSTOM_PATTERNS: "${SAG_CUSTOM_PATTERNS:-}"
       SAG_FILTERS_PATH: "${SAG_FILTERS_PATH:-}"
