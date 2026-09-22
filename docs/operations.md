@@ -17,6 +17,8 @@ separate program and is not covered here.
 | Set `SAG_API_KEYS` | `key:tenant:application`, comma-separated. The tenant becomes the vault scope |
 | Point `SAG_EXTERNAL_BASE_URL` at your provider | Must be `https` and must resolve to a public address; the gateway refuses private and link-local destinations |
 | Consider `SAG_EGRESS_ALLOWLIST` | Pins egress to your approved providers. Empty means any public host |
+| Decide on `SAG_LOCAL_ROUTING` | `off` by default. `detected` sends every request with a detection that is not blocked to your own model, and needs `SAG_NER_MODEL_PATH` and the `[ner]` extra, which the container image does not include; `all` sends every request that is not blocked there. See [GDPR mode](configuration.md#gdpr-mode-sag_local_routing) |
+| Point `SAG_LOCAL_BASE_URL` at your own model | Required when `SAG_LOCAL_ROUTING` is on, in every environment. It must resolve only to loopback or private-network addresses (Tailscale's `100.64.0.0/10` included), and it is checked again on every request |
 | Decide the retention window | `SAG_VAULT_TTL_SECONDS` is a **privacy control**, not a cache size. It is how long surrogate mappings — the only place real personal data is written outside process memory — survive |
 
 Verify before taking traffic:
@@ -125,6 +127,11 @@ breakage.
 | `destination 'external': ... resolves to ..., which is loopback, link-local, private, or reserved` | Your provider URL points inside the network. If deliberate, use the `local` destination; if not, this just caught an SSRF footgun |
 | `plaintext http is not permitted for a non-local destination` | Prompts would cross the network in clear |
 | `SAG_NER_MODEL_PATH is set to ..., which is not a directory` | NER is enabled but unavailable. Deliberately fatal: running without it means you believe PERSON is being caught while it is not |
+| `SAG_LOCAL_ROUTING must be one of: off, detected, all` | A typo or a value such as `on` or `true`. It is refused rather than read as `off` |
+| `SAG_LOCAL_ROUTING=<mode> needs SAG_LOCAL_BASE_URL` | The mode is on and there is no local model. The offline mock is not accepted in its place, even in development |
+| `SAG_LOCAL_ROUTING=detected needs an NER model` | Set `SAG_NER_MODEL_PATH`, or use `SAG_LOCAL_ROUTING=all`, which does not depend on detection |
+| `NER is enabled but spaCy is not installed` | The `[ner]` extra is not installed. The container image does not include it, so run `detected` from an installation that has it, or use `SAG_LOCAL_ROUTING=all` |
+| `destination 'local': ... is not loopback or a private network` | With the mode on, the local host resolved to a public, link-local, or otherwise unlisted address. Reach the model over a private network or Tailscale instead |
 
 ### A spike in refused tokens
 
@@ -152,6 +159,43 @@ The gateway rejects what it cannot inspect. Check `error.code`:
 | `inspection_failed` | Non-string content, or a detector failed |
 | `suspicious_encoding_bidi` | Bidirectional controls — the Trojan Source class |
 | `suspicious_encoding_invisible` | Dense invisible padding |
+
+### Checking that GDPR mode is on
+
+With `SAG_LOCAL_ROUTING` set to `detected` or `all`, the gateway logs one INFO
+line at startup on the `gateway.config` logger. It gives the mode, the policy
+version, the NER model, and the local and external hostnames. If
+`SAG_LOG_LEVEL` is `INFO` and that line is missing, the mode is off.
+
+In the audit stream:
+
+| Field | What it tells you |
+|---|---|
+| `policy_version` | Ends in `+local-routing:detected` or `+local-routing:all` for every request handled while the mode was on, blocked requests included |
+| `rule_name` | `local-routing:<mode>` when the mode overrode the policy's destination. Any other rule name means the policy's own decision stood |
+| `destination` | Where the request was routed. `local` for everything the mode moved |
+
+Successful responses carry the same values as `X-Policy-Version` and
+`X-Policy-Rule`. Blocked (403) and failed responses carry neither, so check
+blocked requests in the audit stream.
+
+A check for a DPO: under `all`, no request should have gone anywhere but
+`local`, and under `detected`, no request with a detection should have. This
+must print nothing:
+
+```bash
+docker compose logs --no-log-prefix gateway \
+  | jq -cR 'fromjson? | objects | select(has("schema_version"))
+      | select(.decision != "block" and .destination != "local")
+      | select((.policy_version | endswith("+local-routing:all"))
+          or ((.policy_version | endswith("+local-routing:detected"))
+              and (.entity_counts | length > 0)))'
+```
+
+Blocked requests are excluded because a blocked event still carries a
+destination, usually the policy's `default_destination`, although nothing was
+sent and its `provider` is `none`. Requests that failed, for example because
+the local model was down, write no audit event and so do not appear at all.
 
 ### Latency is higher than expected
 

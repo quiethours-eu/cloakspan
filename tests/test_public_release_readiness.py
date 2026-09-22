@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import re
 import tomllib
 from pathlib import Path
 
 import pytest
+import yaml
 
 from gateway.config import (
     ConfigurationError,
@@ -97,6 +99,32 @@ def test_compose_has_no_usable_secret_or_mock_default():
     assert "SAG_TOKEN_KEY:?" in compose
     assert "SAG_EXTERNAL_BASE_URL:?" in compose
     assert "SAG_LOCAL_BASE_URL:?" in compose
+
+
+def test_compose_passes_every_setting_the_code_reads():
+    """Compose hands the container only the variables it lists.
+
+    A setting the code reads but compose.yaml does not pass stays at its
+    default inside the container, whatever the operator wrote in .env. For
+    SAG_LOCAL_ROUTING that default is off, so a missing line here would leave
+    the mode silently off in Docker.
+    """
+    config = (ROOT / "gateway" / "config.py").read_text(encoding="utf-8")
+    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
+    service = compose["services"]["gateway"]
+
+    read = set(re.findall(r'os\.environ\.get\(\s*"(SAG_[A-Z0-9_]+)"', config))
+    assert "SAG_LOCAL_ROUTING" in read, "the pattern no longer matches how config.py reads"
+
+    # What Compose actually passes: the environment keys, plus the two settings
+    # the ports mapping consumes. A name that appears only in a comment counts
+    # for nothing, which a plain text search would miss.
+    passed = set(service["environment"])
+    passed |= set(re.findall(r"\$\{(SAG_[A-Z0-9_]+)", " ".join(service["ports"])))
+
+    missing = sorted(read - passed)
+    assert not missing, f"read by gateway/config.py but not passed by compose.yaml: {missing}"
+    assert service["environment"]["SAG_LOCAL_ROUTING"] == "${SAG_LOCAL_ROUTING:-off}"
 
 
 def test_gitleaks_keeps_default_rules_and_narrow_fixture_exceptions():

@@ -14,7 +14,9 @@ This module closes the operator-controlled half.
 2. **Host allowlist**, when one is configured. Exact, case-insensitive.
 3. **Address.** Every address the host resolves to must be globally routable.
    Loopback, link-local, private, reserved, and multicast ranges are refused
-   unless the destination is explicitly marked as local.
+   unless the destination is explicitly marked as local. While
+   ``SAG_LOCAL_ROUTING`` is on, `local` is held to the inverse: every address
+   must be loopback or on a private network, from an explicit list.
 
 ## The residual, stated plainly
 
@@ -61,6 +63,42 @@ def _is_globally_routable(address: str) -> bool:
     )
 
 
+#: Where a destination may point when it must be on the operator's own network:
+#: loopback, RFC 1918, RFC 6598 shared address space (which Tailscale uses),
+#: IPv6 loopback, and IPv6 unique local addresses. Nothing else -- so not
+#: link-local, which is where ``169.254.169.254`` lives.
+#:
+#: An explicit list rather than ``is_private`` or ``is_global``. CPython revised
+#: those tables in 2024 (CVE-2024-4032), so their answer depends on the
+#: interpreter; and ``_is_globally_routable`` above treats ``100.64.0.0/10`` as
+#: routable, which would refuse a model reached over Tailscale. A list reads the
+#: same on every interpreter and in every review.
+_PRIVATE_NETWORKS = tuple(
+    ipaddress.ip_network(network)
+    for network in (
+        "127.0.0.0/8",
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "100.64.0.0/10",
+        "::1/128",
+        "fc00::/7",
+    )
+)
+
+
+def _is_private_network(address: str) -> bool:
+    """True when ``address`` is loopback or on a private network.
+
+    An IPv4-mapped IPv6 address is judged by the IPv4 address it carries:
+    ``::ffff:10.0.0.5`` is private and ``::ffff:8.8.8.8`` is not.
+    """
+    ip = ipaddress.ip_address(address)
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
+    return any(ip in network for network in _PRIVATE_NETWORKS)
+
+
 def _resolve(host: str) -> list[str]:
     """Every address ``host`` resolves to, or the literal address itself."""
     try:
@@ -96,6 +134,10 @@ class EgressPolicy:
     allow_http: bool | None = None
     #: When non-empty, the host must appear here. Exact, case-insensitive.
     allowed_hosts: frozenset[str] = field(default_factory=frozenset)
+    #: Every resolved address must be loopback or on a private network (see
+    #: ``_PRIVATE_NETWORKS``). Set for `local` while SAG_LOCAL_ROUTING is on,
+    #: where `local` has to be the operator's own model rather than a name.
+    require_private_network: bool = False
 
     @property
     def http_permitted(self) -> bool:
@@ -131,6 +173,14 @@ class EgressPolicy:
             raise EgressBlockedError(f"destination {self.name!r}: {host!r} resolved to nothing")
 
         for address in addresses:
+            # Every address, not the first: a name that resolves to one private
+            # and one public address is one connection away from the public one.
+            if self.require_private_network and not _is_private_network(address):
+                raise EgressBlockedError(
+                    f"destination {self.name!r}: {host!r} resolves to {address}, which is not "
+                    "loopback or a private network; SAG_LOCAL_ROUTING requires the local "
+                    "model on your own network"
+                )
             if not _is_globally_routable(address) and not self.allow_private:
                 raise EgressBlockedError(
                     f"destination {self.name!r}: {host!r} resolves to {address}, which is "
@@ -145,6 +195,7 @@ class EgressPolicy:
             "allow_private": self.allow_private,
             "allow_http": self.http_permitted,
             "allowed_hosts": sorted(self.allowed_hosts),
+            "require_private_network": self.require_private_network,
         }
 
 
@@ -153,13 +204,26 @@ def policy_for(
     *,
     allowed_hosts: frozenset[str] = frozenset(),
     allow_private_override: bool | None = None,
+    require_private_network: bool = False,
 ) -> EgressPolicy:
     """The default policy for a named destination.
 
     ``local`` allows private addresses because that is what it is for; every
     other destination does not. An operator can override globally, and the
     override is logged loudly because it removes the SSRF control.
+
+    ``require_private_network`` is stricter than both: the destination may
+    resolve *only* to loopback or private networks. Private addresses are then
+    allowed by construction, since they are the only ones left.
     """
+    if require_private_network:
+        return EgressPolicy(
+            name=destination,
+            allow_private=True,
+            allowed_hosts=allowed_hosts,
+            require_private_network=True,
+        )
+
     allow_private = destination == "local"
     if allow_private_override is not None:
         if allow_private_override and not allow_private:

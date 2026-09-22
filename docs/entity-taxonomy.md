@@ -361,6 +361,10 @@ final and a release candidate exists.
    pure and side-effect free; the pipeline may run them on partial,
    attacker-controlled text.
 4. Add a default policy rule, or state explicitly that there is none.
+   `SAG_LOCAL_ROUTING` needs no change: it routes on any detection, whatever
+   the type. A new secret type still has to be added to `block-secrets` in
+   `deployment/policies/default.yaml`, because the mode never blocks anything
+   itself.
 5. Run `make evals`. Status becomes **Measured**.
 6. Status becomes **Advertised** only after the threshold passes on the locked
    holdout set — and only then may it appear in any customer-facing material.

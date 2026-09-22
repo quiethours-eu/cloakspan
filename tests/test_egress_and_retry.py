@@ -367,6 +367,96 @@ class TestProviderValidatesEgress:
         await task
 
 
+class TestPrivateNetworkRequirement:
+    """`local` under SAG_LOCAL_ROUTING is a place on the operator's network.
+
+    Without this, the mode would keep personal data "local" by name only: the
+    URL behind the name could be any host, a cloud API included. The accepted
+    set is an explicit list, so these cases pin every class in it and the
+    classes just outside it -- link-local above all, because
+    ``169.254.169.254`` is the first thing anyone tries.
+    """
+
+    PRIVATE = policy_for("local", require_private_network=True)
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "http://127.0.0.1:11434/v1",
+            "http://10.0.0.5/v1",
+            "http://172.17.0.1/v1",  # Docker's default bridge
+            "http://192.168.1.10/v1",
+            "http://100.64.0.10:11434/v1",  # Tailscale, RFC 6598
+            "http://[::1]/v1",
+            "http://[fd7a:115c:a1e0::1]/v1",  # Tailscale IPv6, a ULA
+            "http://[::ffff:10.0.0.5]/v1",  # IPv4-mapped private
+        ],
+    )
+    def test_loopback_and_private_networks_are_accepted(self, url):
+        self.PRIVATE.validate(url)
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://8.8.8.8/v1",
+            "http://1.1.1.1/v1",
+            "http://169.254.169.254/v1",  # link-local: the metadata service
+            "http://[fe80::1]/v1",
+            "http://0.0.0.0/v1",
+            "http://224.0.0.1/v1",
+            "http://[::ffff:8.8.8.8]/v1",  # IPv4-mapped public
+            "http://[64:ff9b::808:808]/v1",  # NAT64 to a public address
+        ],
+    )
+    def test_everything_else_is_refused(self, url):
+        with pytest.raises(EgressBlockedError, match="not loopback or a private network"):
+            self.PRIVATE.validate(url)
+
+    def test_a_name_that_resolves_to_private_and_public_is_refused(self, monkeypatch):
+        """Every address counts. One public address is one connection away."""
+        monkeypatch.setattr("gateway.routing.egress._resolve", lambda host: ["10.0.0.5", "8.8.8.8"])
+        with pytest.raises(EgressBlockedError, match=r"8\.8\.8\.8"):
+            self.PRIVATE.validate("http://gpu.internal:11434/v1")
+
+    async def test_the_check_runs_again_on_every_request(self, monkeypatch):
+        """A name that was private at startup can resolve publicly later.
+
+        The request after the change must be refused before the transport sees
+        it, so nothing reaches the public address.
+        """
+        resolved = ["10.0.0.5"]
+        monkeypatch.setattr("gateway.routing.egress._resolve", lambda host: list(resolved))
+        sent: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            sent.append(request)
+            return httpx.Response(200, json=_completion())
+
+        provider = OpenAICompatibleProvider(
+            base_url="http://gpu.internal:11434/v1",
+            name="local",
+            egress=self.PRIVATE,
+            transport=httpx.MockTransport(handler),
+        )
+        await provider.chat_completion({"model": "m", "messages": []})
+        assert len(sent) == 1
+
+        resolved[:] = ["8.8.8.8"]
+        with pytest.raises(EgressBlockedError, match=r"8\.8\.8\.8"):
+            await provider.chat_completion({"model": "m", "messages": []})
+        assert len(sent) == 1, "the refused request must not reach the transport"
+
+    def test_default_policies_do_not_require_a_private_network(self):
+        """Callers that do not ask get exactly the policies they had before."""
+        assert policy_for("local").require_private_network is False
+        assert policy_for("external").require_private_network is False
+        assert EgressPolicy().require_private_network is False
+
+    def test_the_requirement_is_describable(self):
+        assert self.PRIVATE.describe()["require_private_network"] is True
+        assert self.PRIVATE.http_permitted is True
+
+
 class TestClientsCannotChooseAnUpstream:
     """The client-controlled half, asserted rather than assumed.
 
