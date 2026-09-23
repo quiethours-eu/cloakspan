@@ -283,7 +283,7 @@ jobs:
       - run: cosign sign --yes "${{ steps.push.outputs.tag }}@${{ steps.push.outputs.digest }}"
 
       - name: build provenance
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.push.outputs.digest }}
