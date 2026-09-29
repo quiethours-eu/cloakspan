@@ -66,8 +66,8 @@ dev = [
 ]
 
 [project.scripts]
-cloakspan = "gateway.main:run"
-secure-ai-gateway = "gateway.main:run"
+cloakspan = "gateway.cli:main"
+secure-ai-gateway = "gateway.cli:main"
 
 [build-system]
 requires = ["hatchling>=1.25"]
