@@ -165,10 +165,14 @@ class PolicyEngine:
         )
 
     def evaluate(self, ctx: RequestContext, inspection: InspectionResult) -> PolicyDecision:
-        # The routing floor sees the decision after every rule has had its say,
-        # so no rule can route around it. With the mode off it is the identity.
-        decision = self._first_match(ctx, inspection)
-        return apply_local_routing(self._local_routing, decision, inspection)
+        return self.evaluate_with_base(ctx, inspection)[1]
+
+    def evaluate_with_base(
+        self, ctx: RequestContext, inspection: InspectionResult
+    ) -> tuple[PolicyDecision, PolicyDecision]:
+        """Return the composed rule decision and its final routing-floor result."""
+        base = self._first_match(ctx, inspection)
+        return base, apply_local_routing(self._local_routing, base, inspection)
 
     def _first_match(self, ctx: RequestContext, inspection: InspectionResult) -> PolicyDecision:
         for rule in self._rules:

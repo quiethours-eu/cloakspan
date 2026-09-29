@@ -159,6 +159,11 @@ MAX_RESPONSE_BYTES = 8 * 1024 * 1024
 _RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 
 
+def resolve_model(requested: str, override: str | None) -> str:
+    """Apply the destination's model override without constructing a provider."""
+    return override or requested
+
+
 class OpenAICompatibleProvider:
     """Direct HTTP adapter for any OpenAI-compatible endpoint.
 
@@ -343,8 +348,8 @@ class OpenAICompatibleProvider:
 
     async def chat_completion(self, payload: dict[str, Any]) -> dict[str, Any]:
         body = dict(payload)
-        if self._model_override:
-            body["model"] = self._model_override
+        if "model" in body or self._model_override:
+            body["model"] = resolve_model(str(body.get("model", "")), self._model_override)
 
         headers = {"Content-Type": "application/json"}
         if self._api_key:

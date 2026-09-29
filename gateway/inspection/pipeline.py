@@ -10,18 +10,17 @@ from __future__ import annotations
 
 import asyncio
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
-from gateway.api.schema import accepts_request_fields
 from gateway.audit.events import AuditSink, build_event
-from gateway.detectors.base import resolve_conflicts
-from gateway.domain import Action, InspectionResult, RequestContext, Span
-from gateway.normalization import (
-    DetectionView,
-    ScreeningResult,
-    build_detection_view,
-    screen_text,
+from gateway.domain import Action, InspectionResult, RequestContext
+from gateway.inspection.preparation import (
+    INSPECTED_INPUT_ROLES,  # noqa: F401 - public compatibility import
+    INSPECTED_MESSAGE_FIELDS,  # noqa: F401 - public compatibility import
+    DetectionError,  # noqa: F401 - public compatibility import
+    InspectedMessage,
+    PreparationService,
 )
 from gateway.policy.engine import PolicyEngine
 from gateway.policy.local_routing import LOCAL_DESTINATION, LocalRouting, LocalRoutingViolation
@@ -34,44 +33,16 @@ from gateway.routing.base import ProviderAdapter, ProviderError
 from gateway.transformations.engine import TransformationEngine
 from gateway.transformations.tokens import TokenProvenance
 
-# Message roles accepted by the request schema and inspected on the way in.
-INSPECTED_INPUT_ROLES = ("system", "user", "assistant", "tool")
-
-# The only message fields inspection reads: `role` decides whether a message is
-# inspected, and `content` is what is inspected. The request schema accepts the
-# same two.
-INSPECTED_MESSAGE_FIELDS = frozenset({"role", "content"})
-
 # The ONLY response fields restoration may write into (security invariant
 # SI-03). Restoring into a tool-call name or an id would let a model rewrite
 # control data, not just prose.
 RESTORABLE_RESPONSE_FIELDS = ("content",)
 
 
-class DetectionError(Exception):
-    """A detector failed, or content could not be inspected. Fails closed."""
-
-
 class PolicyBlockedError(Exception):
     def __init__(self, message: str, rule_name: str) -> None:
         super().__init__(message)
         self.rule_name = rule_name
-
-
-@dataclass(slots=True)
-class InspectedMessage:
-    """One message with its span list in **original** coordinates.
-
-    ``text`` is the client's bytes, unchanged. Spans index into it directly, so
-    transformation and forwarding both operate on what the customer actually
-    sent.
-    """
-
-    index: int
-    text: str
-    spans: list[Span] = field(default_factory=list)
-    #: Encoding signals for the audit event. Codes and counts, never content.
-    signals: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -107,6 +78,9 @@ class SecurityPipeline:
         self._audit = audit_sink
         self._max_input_chars = max_input_chars
         self._block_mixed_script = block_mixed_script
+        self._preparation = PreparationService(
+            detectors, policy, transformer, max_input_chars, block_mixed_script
+        )
         #: Checked again here, by provider identity, after the policy engine
         #: has applied it. See the tripwire in ``process``.
         self._local_routing = local_routing
@@ -137,205 +111,11 @@ class SecurityPipeline:
             if close is not None:
                 await close()
 
-    # ------------------------------------------------------------------
-    # Detection
-    # ------------------------------------------------------------------
-
-    def _detect(self, view: DetectionView) -> list[Span]:
-        """Run every detector over the view, in **view** coordinates.
-
-        Structured detectors -- the ones with a checksum or a rigid shape -- see
-        the confusable-folded view, so a Cyrillic ``З`` inside a personal code is
-        found. Dictionary and NER detectors see the unfolded view, because
-        folding a Cyrillic word into Latin letters could make it collide with a
-        customer term that has nothing to do with it. Both views share indices,
-        so the same offset map serves both.
-        """
-        spans: list[Span] = []
-        for detector in self._detectors:
-            text = view.folded if getattr(detector, "uses_folded_view", False) else view.text
-            try:
-                spans.extend(detector.detect(text))
-            except Exception as exc:  # noqa: BLE001 - broad by design, then re-raised
-                # Any detector failure must fail closed. We name the detector
-                # and the exception type, but never the text being scanned.
-                raise DetectionError(
-                    f"detector {getattr(detector, 'name', type(detector).__name__)!r} "
-                    f"failed: {type(exc).__name__}"
-                ) from exc
-        return spans
-
-    def _map_to_original(self, view: DetectionView, view_spans: list[Span]) -> list[Span]:
-        """Translate view spans into original coordinates, validating each one.
-
-        A span that cannot be mapped, or whose mapped text does not re-derive
-        the matched view text, **fails the request**. Dropping it silently would
-        forward an entity we detected; clamping it would replace bytes we did
-        not choose.
-
-        The mapped span carries the *original* bytes, so the token is derived
-        from what the customer actually wrote and restoration returns it
-        exactly. One consequence worth naming: a homoglyph variant and its clean
-        equivalent are different byte sequences and therefore get different
-        tokens. Both are detected and replaced, which is what matters; token
-        consistency across an attacker's obfuscation is not something we owe.
-        """
-        mapped: list[Span] = []
-        for span in view_spans:
-            try:
-                origin_start, origin_end = view.map_span(span.start, span.end)
-            except Exception as exc:  # noqa: BLE001 - re-raised as fail-closed
-                raise DetectionError(
-                    f"detector {span.detector!r} produced a span that could not be "
-                    f"mapped to the source text: {type(exc).__name__}"
-                ) from exc
-
-            if not view.verify_round_trip(span.start, span.end):
-                raise DetectionError(
-                    f"detector {span.detector!r} produced a span whose source text "
-                    "does not re-derive the matched text; refusing to replace it"
-                )
-
-            mapped.append(
-                Span(
-                    start=origin_start,
-                    end=origin_end,
-                    entity_type=span.entity_type,
-                    text=view.original[origin_start:origin_end],
-                    score=span.score,
-                    detector=span.detector,
-                )
-            )
-
-        # Re-resolve in original coordinates: two spans that did not overlap in
-        # the view can overlap once dropped characters are absorbed into their
-        # ranges. Replacing overlapping spans would corrupt the text.
-        return resolve_conflicts(mapped)
-
     def inspect_payload(
         self, payload: dict[str, Any]
     ) -> tuple[InspectionResult, list[InspectedMessage]]:
-        """Detect across every inspected message, keeping spans message-scoped.
-
-        Each message is screened for deceptive encoding, viewed, detected on the
-        view, and then mapped back so its spans index the **original** text.
-        Transformation and forwarding both work on the original from here on.
-        """
-        # Refused, not forwarded: `_build_outbound` copies the request, and only
-        # message content is inspected. A top-level field the request schema
-        # would refuse, or a value of a type it would refuse, can carry text no
-        # detector saw (SI-01). The HTTP schema refuses these first; this covers
-        # direct callers. Neither the field nor its value is echoed.
-        if not accepts_request_fields(payload):
-            raise DetectionError(
-                "request has a field this version does not accept; refusing to forward it"
-            )
-
-        messages = payload.get("messages") or []
-        if not isinstance(messages, list) or not messages:
-            raise DetectionError("request contains no messages to inspect")
-
-        total = 0
-        inspected: list[InspectedMessage] = []
-        aggregate: list[Span] = []
-
-        for index, message in enumerate(messages):
-            if not isinstance(message, dict):
-                raise DetectionError(f"message {index} is not an object")
-            # Likewise for a message field other than the two read below, such
-            # as `name` or `tool_calls`.
-            if not message.keys() <= INSPECTED_MESSAGE_FIELDS:
-                raise DetectionError(
-                    f"message {index} has a field this version does not inspect; "
-                    "refusing to forward it"
-                )
-            if message.get("role") not in INSPECTED_INPUT_ROLES:
-                # Refused, not skipped: `_build_outbound` copies every message,
-                # so a skipped one would be forwarded without inspection (SI-01).
-                # The HTTP schema refuses these roles first; this covers direct
-                # callers. The role is not echoed -- it is client input.
-                raise DetectionError(
-                    f"message {index} has a role this version does not inspect; "
-                    "refusing to forward it"
-                )
-
-            content = message.get("content")
-            if not isinstance(content, str):
-                # Multimodal / structured content is not inspectable in v1.
-                # Explicit policy per security invariant SI-02: refuse rather
-                # than forward something we did not inspect.
-                raise DetectionError(
-                    f"message {index} has non-text content, which this version "
-                    "cannot inspect; refusing to forward uninspected content"
-                )
-
-            total += len(content)
-            if total > self._max_input_chars:
-                raise DetectionError(
-                    f"request exceeds the {self._max_input_chars} character inspection limit"
-                )
-
-            # Screening first: an encoding designed to deceive is refused before
-            # we spend detection effort on it, and refusing it is a decision
-            # about the encoding, not about what was found.
-            screening: ScreeningResult = screen_text(
-                content, block_mixed_script=self._block_mixed_script
-            )
-            screening.raise_if_blocking()
-
-            view = build_detection_view(content)
-            # Conflict resolution is per message -- see the module docstring --
-            # and runs once in view coordinates and again after mapping.
-            view_spans = resolve_conflicts(self._detect(view))
-            spans = self._map_to_original(view, view_spans)
-
-            inspected.append(
-                InspectedMessage(
-                    index=index,
-                    text=content,
-                    spans=spans,
-                    signals=dict(screening.signals),
-                )
-            )
-            aggregate.extend(spans)
-
-        # The aggregate is used only for policy matching and audit counts, both
-        # of which care about entity *types and counts*, not offsets.
-        return InspectionResult(spans=aggregate), inspected
-
-    # ------------------------------------------------------------------
-    # Main path
-    # ------------------------------------------------------------------
-
-    def _build_outbound(
-        self,
-        ctx: RequestContext,
-        payload: dict[str, Any],
-        inspected: list[InspectedMessage],
-        should_transform: bool,
-        provenance: TokenProvenance,
-    ) -> tuple[dict[str, Any], int]:
-        """Assemble the payload actually sent upstream. Synchronous, CPU-bound.
-
-        Extracted from ``process`` so it can be handed to a worker thread as one
-        unit -- see the threading note there.
-        """
-        outbound = dict(payload)
-        outbound["messages"] = [dict(m) for m in payload["messages"]]
-        transformed_count = 0
-
-        for message in inspected:
-            if should_transform:
-                result = self._transformer.transform(ctx, message.text, message.spans, provenance)
-                outbound["messages"][message.index]["content"] = result.text
-                transformed_count += result.replaced
-            else:
-                # ALLOW: forward the client's bytes unchanged (SI-17). This is
-                # safe because the *whole* original was inspected -- every index
-                # of it is covered by the offset map -- so "unchanged" does not
-                # mean "unscanned".
-                outbound["messages"][message.index]["content"] = message.text
-        return outbound, transformed_count
+        """Compatibility entrypoint for direct callers of the gateway pipeline."""
+        return self._preparation.inspect_payload(payload)
 
     async def process(self, ctx: RequestContext, payload: dict[str, Any]) -> PipelineResult:
         """Inspect, route, and restore one request.
@@ -346,15 +126,10 @@ class SecurityPipeline:
         """
         started = time.perf_counter()
         model_requested = str(payload.get("model", ""))
-        provenance = TokenProvenance()
-
-        inspection, inspected = await asyncio.to_thread(self.inspect_payload, payload)
-        decision = self._policy.evaluate(ctx, inspection)
-        entity_counts = inspection.entity_counts()
-        encoding_signals: dict[str, int] = {}
-        for message in inspected:
-            for reason, count in message.signals.items():
-                encoding_signals[reason] = encoding_signals.get(reason, 0) + count
+        prepared = await asyncio.to_thread(self._preparation.prepare, ctx, payload)
+        decision = prepared.decision
+        entity_counts = prepared.entity_counts
+        encoding_signals = prepared.encoding_signals
 
         if decision.action is Action.BLOCK:
             self._audit.write(
@@ -373,10 +148,9 @@ class SecurityPipeline:
                 decision.rule_name,
             )
 
-        should_transform = decision.action in (Action.TRANSFORM, Action.ROUTE_LOCAL)
-        outbound, transformed_count = await asyncio.to_thread(
-            self._build_outbound, ctx, payload, inspected, should_transform, provenance
-        )
+        outbound = prepared.outbound
+        if outbound is None:
+            raise ProviderError("preparation returned no outbound payload", 500)
 
         provider = self._providers.get(decision.destination)
         if provider is None:
@@ -406,7 +180,7 @@ class SecurityPipeline:
         # ---- Buffered output inspection and restoration ----
         try:
             response, restoration = await asyncio.to_thread(
-                self._restore_response, ctx, response, provenance
+                self._restore_response, ctx, response, prepared.provenance
             )
         except RestorationOutputTooLargeError as exc:
             raise ProviderError(str(exc), 502) from exc
@@ -420,7 +194,7 @@ class SecurityPipeline:
                 provider=provider.name,
                 entity_counts=entity_counts,
                 encoding_signals=encoding_signals,
-                entities_transformed=transformed_count,
+                entities_transformed=prepared.transformed_count,
                 restoration_performed=restoration.restored > 0,
                 tokens_restored=restoration.restored,
                 tokens_refused=restoration.total_refused,

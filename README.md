@@ -4,6 +4,8 @@
 
 # Cloakspan
 
+Try a local inspection preview with `cloakspan playground` (or `python -m gateway.cli playground`). It opens at the loopback URL printed in the terminal and contacts no model provider. See the [local privacy playground guide](docs/local-privacy-playground.md).
+
 **Send context to the model. Keep identities local.**
 
 Cloakspan runs on your own server and hides detected sensitive details before

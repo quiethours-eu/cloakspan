@@ -66,8 +66,8 @@ dev = [
 ]
 
 [project.scripts]
-cloakspan = "gateway.main:run"
-secure-ai-gateway = "gateway.main:run"
+cloakspan = "gateway.cli:run"
+secure-ai-gateway = "gateway.cli:run"
 
 [build-system]
 requires = ["hatchling>=1.25"]
@@ -78,6 +78,9 @@ packages = ["gateway", "recognizers"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "deployment/policies/default.yaml" = "gateway/_data/default-policy.yaml"
+"gateway/playground/static/index.html" = "gateway/playground/static/index.html"
+"gateway/playground/static/style.css" = "gateway/playground/static/style.css"
+"gateway/playground/static/app.js" = "gateway/playground/static/app.js"
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "evals"]

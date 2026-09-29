@@ -310,6 +310,15 @@ def _load_filters(settings: Settings) -> FilterSet | None:
         raise ConfigurationError(f"SAG_FILTERS_PATH: {exc}") from None
 
 
+def load_policy_and_filters(settings: Settings) -> tuple[PolicyEngine, FilterSet | None]:
+    """Load the same composed policy for production and local preview."""
+    policy = PolicyEngine.from_yaml(settings.policy_path)
+    filters = _load_filters(settings)
+    if filters is not None:
+        policy = policy.with_rules(filters.rules, version_suffix=f"filters:{filters.fingerprint}")
+    return policy.with_local_routing(settings.local_routing), filters
+
+
 def build_detectors(settings: Settings, *, filters: FilterSet | None = None) -> list[object]:
     detectors = list(default_detectors())
     filters = filters if filters is not None else _load_filters(settings)
@@ -554,13 +563,7 @@ def _log_local_routing(
 
 
 def build_pipeline(settings: Settings, audit_sink: AuditSink | None = None) -> SecurityPipeline:
-    policy = PolicyEngine.from_yaml(settings.policy_path)
-    filters = _load_filters(settings)
-    if filters is not None:
-        policy = policy.with_rules(filters.rules, version_suffix=f"filters:{filters.fingerprint}")
-    # Last, so no policy rule, filter, or legacy pattern can route around it.
-    # With SAG_LOCAL_ROUTING off this returns the same policy object.
-    policy = policy.with_local_routing(settings.local_routing)
+    policy, filters = load_policy_and_filters(settings)
     vault = SurrogateVault(
         key_ring=build_key_ring(),
         ttl_seconds=settings.vault_ttl_seconds,
