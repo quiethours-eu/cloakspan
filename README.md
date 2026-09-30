@@ -4,6 +4,10 @@
 
 # Cloakspan
 
+Run `cloakspan doctor` to inspect setup problems without starting the gateway.
+See the [setup doctor guide](docs/setup-doctor.md) for JSON output, optional
+model and provider checks, and Compose commands.
+
 Try a local inspection preview with `cloakspan playground` (or `python -m gateway.cli playground`). It opens at the loopback URL printed in the terminal and contacts no model provider. See the [local privacy playground guide](docs/local-privacy-playground.md).
 
 **Send context to the model. Keep identities local.**
