@@ -94,11 +94,12 @@ fmt:
 # dependencies; Gitleaks and Trivy are optional external tools and are reported
 # when absent.
 security:
+	@$(PY) scripts/vulnerability_policy.py
 	@echo "== ruff (security rules: S/ASYNC) =="
 	@$(PY) -m ruff check --select S,ASYNC gateway recognizers
 	@echo "== pip-audit (dependency CVEs) =="
 	@if $(PY) -c "import importlib.util, sys; sys.exit(importlib.util.find_spec('pip_audit') is None)"; then \
-		$(PY) -m pip_audit --requirement deployment/requirements.lock; \
+		$(PY) -m pip_audit --strict --requirement deployment/requirements.lock; \
 	else \
 		echo "  pip-audit not installed in $(VENV): $(PY) -m pip install pip-audit"; \
 	fi
@@ -110,7 +111,10 @@ security:
 	fi
 	@echo "== trivy (container image) =="
 	@if command -v trivy >/dev/null 2>&1; then \
-		trivy image secure-ai-gateway:dev; \
+		mkdir -p dist && \
+		trivy image --scanners vuln --severity CRITICAL,HIGH --format json \
+		  --output dist/trivy.json --exit-code 0 secure-ai-gateway:dev && \
+		$(PY) scripts/vulnerability_policy.py dist/trivy.json; \
 	else \
 		echo "  trivy not installed"; \
 	fi

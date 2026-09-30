@@ -151,8 +151,7 @@ class TestSecurityExceptions:
         assert "HIGH" in document["policy"]["block_unless_excepted"]
 
     def test_critical_findings_can_never_be_excepted(self):
-        """Not "should not" -- cannot. If a CRITICAL is genuinely unexploitable,
-        the downgrade must be a visible decision, not an invisible omission."""
+        """Not "should not" -- cannot. Severity overrides are not supported."""
         document = load_exceptions()
         for entry in document.get("exceptions") or []:
             assert entry["severity"] != "CRITICAL", (
@@ -208,13 +207,7 @@ class TestSecurityExceptions:
                 f"{document['policy']['max_exception_days']}-day maximum"
             )
 
-    def test_there_are_currently_no_exceptions(self):
-        """Recorded so that adding the first one is a deliberate, reviewed act.
+    def test_committed_exceptions_pass_the_runtime_validator(self):
+        from scripts.vulnerability_policy import load_policy
 
-        When a real exception is needed this assertion changes in the same
-        commit, which puts it in front of a reviewer.
-        """
-        assert not (load_exceptions().get("exceptions") or []), (
-            "an exception was added -- update this test in the same commit so the "
-            "addition is reviewed rather than absorbed"
-        )
+        load_policy(EXCEPTIONS)

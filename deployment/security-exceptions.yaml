@@ -1,15 +1,14 @@
 # Accepted vulnerability findings.
 #
-# A finding listed here does not fail the build. Everything about that sentence
-# is dangerous, so the format is deliberately awkward: every entry needs an
+# A matching HIGH Trivy finding listed here does not fail the build. Everything
+# about that sentence is dangerous, so the format is deliberately awkward: every entry needs an
 # owner, a date, an expiry, and a reason that would survive being read aloud in
 # an incident review.
 #
-# The rules, enforced by tests/test_supply_chain.py:
+# The rules, enforced by scripts/vulnerability_policy.py and its tests:
 #
-#   * CRITICAL findings can never be excepted. If one is unexploitable, say so
-#     in `reason` and use a HIGH exception with `severity_override`, so the
-#     downgrade is a visible decision rather than an invisible omission.
+#   * CRITICAL findings can never be excepted or downgraded.
+#     severity_override is intentionally unsupported.
 #   * Every entry expires. 90 days maximum. An exception with no end date is a
 #     decision nobody ever revisits.
 #   * `approved_by` must be a person, not a team. "Security" cannot be asked
@@ -22,8 +21,11 @@
 
 version: 1
 
-# Severity policy. Applies to pip-audit, Trivy, and anything else wired into
-# `make security`.
+# Severity policy for Trivy. pip-audit lacks severity evidence and remains
+# unconditionally blocking: a HIGH exception cannot prove its finding is not
+# CRITICAL. No pip-audit finding is waived by this file.
+# Python ranges use PEP 440; OS packages require an exact ==VERSION (including
+# distro revisions). package_type is Trivy Result.Type, e.g. python-pkg or debian.
 policy:
   # Fails the build with no exception possible.
   block: [CRITICAL]
@@ -39,6 +41,7 @@ exceptions: []
 #
 #  - id: CVE-2026-00000
 #    package: some-library
+#    package_type: python-pkg
 #    affected_versions: ">=1.0,<1.4"
 #    severity: HIGH
 #    reason: >
