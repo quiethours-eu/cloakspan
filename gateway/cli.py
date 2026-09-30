@@ -93,9 +93,7 @@ def main(argv: list[str] | None = None) -> int:
     playground = commands.add_parser(
         "playground", help="inspect sample text in a private loopback browser page"
     )
-    playground.add_argument(
-        "--port", type=int, default=8765, help="loopback port (default: 8765)"
-    )
+    playground.add_argument("--port", type=int, default=8765, help="loopback port (default: 8765)")
     args = parser.parse_args(argv)
 
     if args.command in (None, "serve"):
