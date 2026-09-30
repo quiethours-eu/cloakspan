@@ -22,7 +22,7 @@ from recognizers.custom.customer_rules import (
 )
 from recognizers.secrets.detectors import SecretDetector
 
-from .conftest import VALID_EE_CODE, VALID_LT_CODE, VALID_LV_CODE
+from .fixtures import VALID_EE_CODE, VALID_LT_CODE, VALID_LV_CODE
 
 
 class TestBalticChecksums:

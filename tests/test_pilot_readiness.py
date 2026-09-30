@@ -18,6 +18,7 @@ needs a stranger, and it is the part of Phase 7 no test replaces.
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -57,28 +58,58 @@ class TestTheDocumentedPathExists:
     def test_the_demo_runs_offline_and_shows_what_the_provider_received(self):
         """The demo's whole claim: you can see for yourself that the original
         values never left. If it stops printing that, the claim is unbacked."""
+        # Run the actual demo with no configured credentials. Exit immediately on
+        # any Python socket connection, even if the demo would catch the error.
+        network_guard = """\
+import asyncio
+import os
+import runpy
+import socket
+
+# Windows asyncio makes a loopback socket pair while creating the event loop.
+# Install the guard after that setup so only connections from the demo fail.
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+
+def refuse_network(*args, **kwargs):
+    os._exit(86)
+
+socket.socket.__init__ = refuse_network
+demo = runpy.run_path("scripts/demo.py", run_name="guarded_demo")
+raise SystemExit(loop.run_until_complete(demo["main"]()))
+"""
+        env = {
+            name: value
+            for name, value in os.environ.items()
+            if not name.startswith("SAG_") and not name.endswith("_API_KEY")
+        }
         result = subprocess.run(  # noqa: S603
-            [sys.executable, "scripts/demo.py"],
+            [sys.executable, "-c", network_guard],
             cwd=ROOT,
+            env=env,
             capture_output=True,
             text=True,
             timeout=180,
             encoding="utf-8",
             errors="replace",
         )
+        assert result.returncode != 86, "the demo attempted a network connection"
         assert result.returncode == 0, result.stderr[-2000:]
 
         output = result.stdout
         assert "provider saw" in output, "the demo must show what the provider received"
         assert "provider saw NOTHING" in output, "and that a blocked request sent nothing"
-        assert "alice@acme.lv" not in output or "<EMAIL_ADDRESS:" in output
-
-    def test_the_demo_needs_no_credentials_or_network(self):
-        """Asserted against the source, because a demo that quietly requires an
-        API key is a demo nobody can run."""
-        demo = (ROOT / "scripts" / "demo.py").read_text(encoding="utf-8")
-        assert "MockProvider" in demo
-        assert "OpenAICompatibleProvider" not in demo
+        provider_output = "\n".join(line for line in output.splitlines() if "provider saw" in line)
+        for original in (
+            "alex@example.com",
+            "4111 1111 1111 1111",
+            "120385-12342",
+            "AKIAIOSFODNN7EXAMPLE",
+            "Project Aurora",
+        ):
+            assert original not in provider_output, f"the demo exposed {original!r} to a provider"
+        for token_type in ("EMAIL_ADDRESS", "PAYMENT_CARD", "LV_PERSONAL_CODE", "CUSTOMER_TERM"):
+            assert f"<{token_type}:" in provider_output
 
 
 class TestTheUpstreamIsConfigurable:
