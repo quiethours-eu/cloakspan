@@ -143,50 +143,66 @@ class EgressPolicy:
     def http_permitted(self) -> bool:
         return self.allow_private if self.allow_http is None else self.allow_http
 
-    def validate(self, url: str) -> None:
-        """Raise :class:`EgressBlockedError` unless ``url`` is permitted."""
-        parts = urlsplit(url)
+    def validate_offline(self, url: str) -> str:
+        """Check URL syntax and literal IPs without resolving a hostname."""
+        try:
+            parts = urlsplit(url)
+            host = parts.hostname
+            port = parts.port
+        except ValueError:
+            raise EgressBlockedError(f"destination {self.name!r}: invalid URL") from None
+        if port == 0:
+            raise EgressBlockedError(f"destination {self.name!r}: invalid URL port")
 
         if parts.scheme not in ("http", "https"):
-            raise EgressBlockedError(
-                f"destination {self.name!r}: scheme {parts.scheme or '(none)'!r} is not "
-                "permitted; use https, or http for an explicitly local destination"
-            )
+            raise EgressBlockedError(f"destination {self.name!r}: URL scheme is not permitted")
         if parts.scheme == "http" and not self.http_permitted:
             raise EgressBlockedError(
                 f"destination {self.name!r}: plaintext http is not permitted for a "
                 "non-local destination. Prompts would cross the network in clear."
             )
 
-        host = parts.hostname
         if not host:
             raise EgressBlockedError(f"destination {self.name!r}: URL has no host")
+        if any(char.isspace() for char in url):
+            raise EgressBlockedError(f"destination {self.name!r}: URL contains whitespace")
 
         if self.allowed_hosts and host.lower() not in self.allowed_hosts:
             raise EgressBlockedError(
-                f"destination {self.name!r}: host {host!r} is not in the egress "
-                f"allowlist ({sorted(self.allowed_hosts)})"
+                f"destination {self.name!r}: host is not in the egress allowlist"
             )
 
-        addresses = _resolve(host)
-        if not addresses:
-            raise EgressBlockedError(f"destination {self.name!r}: {host!r} resolved to nothing")
+        try:
+            ipaddress.ip_address(host)
+        except ValueError:
+            return host
+        self.validate_addresses([host], host=host)
+        return host
 
+    def validate_addresses(self, addresses: list[str], *, host: str = "") -> None:
+        """Apply the same address rules to a literal or resolved hostname."""
         for address in addresses:
-            # Every address, not the first: a name that resolves to one private
-            # and one public address is one connection away from the public one.
             if self.require_private_network and not _is_private_network(address):
                 raise EgressBlockedError(
-                    f"destination {self.name!r}: {host!r} resolves to {address}, which is not "
-                    "loopback or a private network; SAG_LOCAL_ROUTING requires the local "
-                    "model on your own network"
+                    f"destination {self.name!r}: {host!r} resolves to {address}, which is "
+                    "not loopback or a private network"
                 )
             if not _is_globally_routable(address) and not self.allow_private:
                 raise EgressBlockedError(
                     f"destination {self.name!r}: {host!r} resolves to {address}, which is "
-                    "loopback, link-local, private, or reserved. Refusing -- this is how "
-                    "a gateway becomes a proxy to the metadata service."
+                    "loopback, link-local, private, or reserved"
                 )
+
+    def validate(self, url: str) -> None:
+        """Raise :class:`EgressBlockedError` unless ``url`` is permitted."""
+        host = self.validate_offline(url)
+
+        addresses = _resolve(host)
+        if not addresses:
+            raise EgressBlockedError(f"destination {self.name!r}: hostname resolved to nothing")
+        # Every address, not the first: a name with both private and public
+        # answers must not pass by chance.
+        self.validate_addresses(addresses, host=host)
 
     def describe(self) -> dict[str, object]:
         """Operator-facing summary. Configuration only, no request data."""

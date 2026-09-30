@@ -17,6 +17,7 @@ import logging
 import os
 import re
 import secrets
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -91,10 +92,12 @@ def _local_routing_from_env() -> LocalRouting:
 
 def _decode_secret(name: str, raw: str) -> bytes:
     """Accept hex or raw UTF-8, and refuse anything too short to be a secret."""
+    from gateway.config_validation import decode_secret
+
     try:
-        secret = bytes.fromhex(raw)
-    except ValueError:
-        secret = raw.encode("utf-8")
+        secret = decode_secret(raw)
+    except UnicodeEncodeError:
+        raise ConfigurationError(f"{name} must contain valid UTF-8 characters") from None
     if len(secret) < MIN_ROOT_SECRET_BYTES:
         raise ConfigurationError(
             f"{name} must be at least {MIN_ROOT_SECRET_BYTES} bytes "
@@ -257,10 +260,23 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> Settings:
-        policy = os.environ.get("SAG_POLICY_PATH")
-        filters_path = os.environ.get("SAG_FILTERS_PATH")
-        terms = os.environ.get("SAG_DICTIONARY_TERMS", "")
-        patterns_raw = os.environ.get("SAG_CUSTOM_PATTERNS", "")
+        return cls.from_mapping(os.environ)
+
+    @classmethod
+    def from_mapping(cls, env: Mapping[str, str], *, for_diagnostics: bool = False) -> Settings:
+        """Parse an explicit environment; diagnostics may keep safe defaults on errors."""
+        from gateway.config_validation import inspect_environment
+
+        parsed = inspect_environment(env)
+        if parsed.routing is None and not for_diagnostics:
+            raise ConfigurationError("SAG_LOCAL_ROUTING must be one of: off, detected, all")
+        fatal = next((issue for issue in parsed.issues if issue.startup_fatal), None)
+        if fatal is not None and not for_diagnostics:
+            raise ConfigurationError(fatal.remediation)
+        policy = env.get("SAG_POLICY_PATH")
+        filters_path = env.get("SAG_FILTERS_PATH")
+        terms = env.get("SAG_DICTIONARY_TERMS", "")
+        patterns_raw = env.get("SAG_CUSTOM_PATTERNS", "")
 
         patterns: list[tuple[str, str]] = []
         for item in filter(None, (p.strip() for p in patterns_raw.split(";"))):
@@ -269,33 +285,28 @@ class Settings:
                 patterns.append((entity.strip(), pattern.strip()))
 
         return cls(
-            bind_host=os.environ.get("SAG_BIND_HOST", "0.0.0.0"),  # noqa: S104
-            port=int(os.environ.get("SAG_PORT", "8080")),
+            bind_host=env.get("SAG_BIND_HOST", "0.0.0.0"),  # noqa: S104
+            port=int(parsed.numbers.get("SAG_PORT", 8080)),
             policy_path=Path(policy) if policy else DEFAULT_POLICY_PATH,
             filters_path=Path(filters_path) if filters_path else None,
-            vault_ttl_seconds=int(os.environ.get("SAG_VAULT_TTL_SECONDS", "3600")),
-            max_input_chars=int(os.environ.get("SAG_MAX_INPUT_CHARS", "65536")),
-            max_request_bytes=int(os.environ.get("SAG_MAX_REQUEST_BYTES", "1048576")),
-            request_timeout_seconds=float(os.environ.get("SAG_REQUEST_TIMEOUT_SECONDS", "120")),
-            log_level=os.environ.get("SAG_LOG_LEVEL", "INFO"),
-            external_base_url=os.environ.get("SAG_EXTERNAL_BASE_URL", ""),
-            external_api_key=os.environ.get("SAG_EXTERNAL_API_KEY", ""),
-            external_model=os.environ.get("SAG_EXTERNAL_MODEL", ""),
-            local_base_url=os.environ.get("SAG_LOCAL_BASE_URL", ""),
-            local_model=os.environ.get("SAG_LOCAL_MODEL", ""),
-            local_routing=_local_routing_from_env(),
-            trust_env_proxy=os.environ.get("SAG_TRUST_ENV_PROXY", "").lower()
-            in ("1", "true", "yes"),
-            ner_model_path=os.environ.get("SAG_NER_MODEL_PATH", ""),
-            block_mixed_script=os.environ.get("SAG_BLOCK_MIXED_SCRIPT", "").lower()
-            in ("1", "true", "yes"),
+            vault_ttl_seconds=int(parsed.numbers.get("SAG_VAULT_TTL_SECONDS", 3600)),
+            max_input_chars=int(parsed.numbers.get("SAG_MAX_INPUT_CHARS", 65536)),
+            max_request_bytes=int(parsed.numbers.get("SAG_MAX_REQUEST_BYTES", 1048576)),
+            request_timeout_seconds=float(parsed.numbers.get("SAG_REQUEST_TIMEOUT_SECONDS", 120)),
+            log_level=env.get("SAG_LOG_LEVEL", "INFO"),
+            external_base_url=env.get("SAG_EXTERNAL_BASE_URL", ""),
+            external_api_key=env.get("SAG_EXTERNAL_API_KEY", ""),
+            external_model=env.get("SAG_EXTERNAL_MODEL", ""),
+            local_base_url=env.get("SAG_LOCAL_BASE_URL", ""),
+            local_model=env.get("SAG_LOCAL_MODEL", ""),
+            local_routing=parsed.routing or LocalRouting.OFF,
+            trust_env_proxy=parsed.flags.get("SAG_TRUST_ENV_PROXY", False),
+            ner_model_path=env.get("SAG_NER_MODEL_PATH", ""),
+            block_mixed_script=parsed.flags.get("SAG_BLOCK_MIXED_SCRIPT", False),
             egress_allowlist=tuple(
-                h.strip()
-                for h in os.environ.get("SAG_EGRESS_ALLOWLIST", "").split(",")
-                if h.strip()
+                h.strip() for h in env.get("SAG_EGRESS_ALLOWLIST", "").split(",") if h.strip()
             ),
-            egress_allow_private=os.environ.get("SAG_EGRESS_ALLOW_PRIVATE", "").lower()
-            in ("1", "true", "yes"),
+            egress_allow_private=parsed.flags.get("SAG_EGRESS_ALLOW_PRIVATE", False),
             dictionary_terms=tuple(t.strip() for t in terms.split(",") if t.strip()),
             custom_patterns=tuple(patterns),
         )
