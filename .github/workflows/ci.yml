@@ -129,6 +129,11 @@ jobs:
           python scripts/supply_chain.py sbom --output dist/sbom.cdx.json
           python scripts/supply_chain.py licences --output dist/licence-report.json
 
+      - name: validate vulnerability exceptions
+        run: python scripts/vulnerability_policy.py
+
+      # pip-audit reports no severity: keep all findings blocking rather than
+      # risk applying a HIGH exception to a CRITICAL vulnerability.
       - name: dependency vulnerabilities
         run: |
           pip install pip-audit
@@ -150,6 +155,7 @@ jobs:
             --source . --config .gitleaks.toml --redact --no-banner
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: supply-chain
           path: dist/
@@ -217,29 +223,7 @@ jobs:
           exit-code: "0"
 
       - name: enforce image vulnerability policy
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          report = json.loads(Path("dist/trivy.json").read_text(encoding="utf-8"))
-          findings = []
-          for result in report.get("Results") or []:
-              for finding in result.get("Vulnerabilities") or []:
-                  if finding.get("Severity") in {"CRITICAL", "HIGH"}:
-                      findings.append(finding)
-
-          for finding in findings:
-              package = finding.get("PkgName", "unknown")
-              installed = finding.get("InstalledVersion", "unknown")
-              fixed = finding.get("FixedVersion") or "no fix published"
-              cve = finding.get("VulnerabilityID", "unknown")
-              severity = finding.get("Severity", "UNKNOWN")
-              print(f"::error::{severity} {cve}: {package} {installed}; fixed in {fixed}")
-
-          if findings:
-              raise SystemExit(f"{len(findings)} blocking image vulnerability finding(s)")
-          PY
+        run: python scripts/vulnerability_policy.py dist/trivy.json
 
       - uses: actions/upload-artifact@v4
         if: always()
