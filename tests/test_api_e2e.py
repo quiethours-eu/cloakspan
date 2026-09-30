@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from gateway.api.app import create_app
 from gateway.config import Settings
 
-from .conftest import TEST_API_KEY, TEST_API_KEY_B, VALID_LV_CODE
+from .fixtures import TEST_API_KEY, TEST_API_KEY_B, VALID_LV_CODE
 
 
 @pytest.fixture
@@ -50,12 +50,18 @@ class TestHealthAndReadiness:
     def test_healthz(self, client):
         assert client.get("/healthz").json() == {"status": "ok"}
 
-    def test_readyz(self, client):
-        assert client.get("/readyz").status_code == 200
-
-    def test_readiness_does_not_depend_on_external_provider(self, client):
+    def test_readiness_does_not_depend_on_external_provider(
+        self, client, mock_provider, monkeypatch
+    ):
         """Security invariant SI-15: no external dependency gates the request path."""
-        assert client.get("/readyz").json()["status"] == "ready"
+
+        async def unavailable(_payload):
+            raise AssertionError("readiness contacted the provider")
+
+        monkeypatch.setattr(mock_provider, "chat_completion", unavailable)
+        response = client.get("/readyz")
+        assert response.status_code == 200
+        assert response.json() == {"status": "ready"}
 
 
 class TestChatCompletions:

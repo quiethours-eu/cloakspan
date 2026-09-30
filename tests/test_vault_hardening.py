@@ -36,7 +36,7 @@ from gateway.vault.store import (
     VaultKeyUnavailableError,
 )
 
-from .conftest import TOKEN_KEY, VAULT_KEY, VAULT_KEY_V2
+from .fixtures import TOKEN_KEY, VAULT_KEY, VAULT_KEY_V2
 
 
 def _ring(**keys: bytes) -> KeyRing:

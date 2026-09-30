@@ -89,16 +89,22 @@ def test_duplicate_api_key_cannot_be_assigned_to_two_tenants(monkeypatch):
         build_key_store()
 
 
-def test_compose_has_no_usable_secret_or_mock_default():
-    compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
+def test_compose_requires_secrets_and_provider_urls_in_production():
+    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
+    environment = compose["services"]["gateway"]["environment"]
 
-    assert 'SAG_ENVIRONMENT: "production"' in compose
-    assert "sgw_live_change_me_immediately" not in compose
-    assert "SAG_API_KEYS:?" in compose
-    assert "SAG_VAULT_KEY:?" in compose
-    assert "SAG_TOKEN_KEY:?" in compose
-    assert "SAG_EXTERNAL_BASE_URL:?" in compose
-    assert "SAG_LOCAL_BASE_URL:?" in compose
+    assert environment["SAG_ENVIRONMENT"] == "production"
+    assert "sgw_live_change_me_immediately" not in str(environment)
+    for name in (
+        "SAG_API_KEYS",
+        "SAG_VAULT_KEY",
+        "SAG_TOKEN_KEY",
+        "SAG_EXTERNAL_BASE_URL",
+        "SAG_LOCAL_BASE_URL",
+    ):
+        assert environment[name].startswith(f"${{{name}:?"), (
+            f"{name} must be required by Compose, with no usable default"
+        )
 
 
 def test_compose_passes_every_setting_the_code_reads():

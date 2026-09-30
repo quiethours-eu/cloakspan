@@ -138,11 +138,19 @@ class TestCorpusIntegrity:
                         f"{example.id}: gold span {span} selects whitespace"
                     )
 
-    def test_boundary_examples_have_no_gold_spans(self):
+    def test_negative_and_boundary_controls_are_present_and_unlabelled(self):
         for split in ("dev", "holdout"):
-            for example in load_corpus(split).examples:
-                if example.kind in ("negative", "boundary"):
-                    assert not example.spans
+            controls = [
+                example
+                for example in load_corpus(split).examples
+                if example.kind in ("negative", "boundary")
+            ]
+            for kind in ("negative", "boundary"):
+                assert any(example.kind == kind for example in controls), (
+                    f"{split} has no {kind} controls, so false-positive checks cannot exercise them"
+                )
+            for example in controls:
+                assert not example.spans
 
 
 class TestBaselineIsNotRegressed:

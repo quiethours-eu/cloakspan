@@ -83,12 +83,12 @@ leakage:
 	$(PY) -m pytest evals/leakage -q
 
 lint:
-	$(PY) -m ruff check gateway recognizers tests evals scripts
-	$(PY) -m ruff format --check gateway recognizers tests evals scripts
+	$(PY) -m ruff check conftest.py gateway recognizers tests evals scripts
+	$(PY) -m ruff format --check conftest.py gateway recognizers tests evals scripts
 
 fmt:
-	$(PY) -m ruff check --fix gateway recognizers tests evals scripts
-	$(PY) -m ruff format gateway recognizers tests evals scripts
+	$(PY) -m ruff check --fix conftest.py gateway recognizers tests evals scripts
+	$(PY) -m ruff format conftest.py gateway recognizers tests evals scripts
 
 # Findings and scanner errors fail this target. pip-audit comes with the dev
 # dependencies; Gitleaks and Trivy are optional external tools and are reported

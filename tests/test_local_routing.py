@@ -35,7 +35,7 @@ from gateway.routing.base import verification_context
 from gateway.routing.egress import EgressBlockedError
 from gateway.transformations.engine import TransformationEngine
 
-from .conftest import VALID_LV_CODE
+from .fixtures import VALID_LV_CODE
 from .test_ner_and_phone import StubBackend
 
 DEFAULT_POLICY = Path(__file__).resolve().parent.parent / "deployment" / "policies" / "default.yaml"

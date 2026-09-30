@@ -17,7 +17,7 @@ from gateway.transformations.tokens import (
 )
 from gateway.vault.store import KeyRing, SurrogateVault
 
-from .conftest import OTHER_TOKEN_KEY, VAULT_KEY
+from .fixtures import OTHER_TOKEN_KEY, VAULT_KEY
 
 # A well-formed token of the current format that was never minted here: correct
 # entity type, correct version, correct tag width, wrong provenance.

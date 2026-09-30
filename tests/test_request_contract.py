@@ -38,7 +38,7 @@ from gateway.config import Settings
 from gateway.inspection.pipeline import INSPECTED_INPUT_ROLES, INSPECTED_MESSAGE_FIELDS
 from gateway.transformations.tokens import TOKEN_PATTERN
 
-from .conftest import TEST_API_KEY
+from .fixtures import TEST_API_KEY
 
 CANARY = "canary-must-not-leak@secret.example"
 

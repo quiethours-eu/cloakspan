@@ -24,7 +24,7 @@ from gateway.transformations.tokens import (
 )
 from gateway.vault.store import KeyRing, SurrogateVault
 
-from .conftest import TOKEN_KEY, VAULT_KEY
+from .fixtures import TOKEN_KEY, VAULT_KEY
 
 CTX = RequestContext("tenant-a", "conv-1", "req-1", "key-1")
 

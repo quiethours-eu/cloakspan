@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from gateway.api.app import create_app
 from gateway.config import Settings
 
-from .conftest import TEST_API_KEY
+from .fixtures import TEST_API_KEY
 
 
 def _chat_body(content: str) -> bytes:
