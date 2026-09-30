@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Cloakspan · Local privacy playground</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">C</span><span>Cloakspan</span></div>
+    <span class="header-tag">LOCAL PRIVACY PLAYGROUND</span>
+  </header>
+  <main class="shell">
+    <div class="intro">
+      <p class="eyebrow">A private look before you send</p>
+      <h1>See what Cloakspan would do.</h1>
+      <p class="lede">Paste sample text to preview detection, policy and the projected request. Inspection runs locally. No model provider is contacted.</p>
+    </div>
+
+    <section id="unlock" class="card unlock-card" aria-labelledby="unlock-title">
+      <div class="step">01 / UNLOCK</div>
+      <h2 id="unlock-title">Enter the session access code</h2>
+      <p>Use the code printed in the terminal that started <code>cloakspan playground</code>. It stays in this page’s memory and is forgotten when you reload.</p>
+      <form id="unlock-form">
+        <label for="access-code">Access code</label>
+        <div class="unlock-row"><input id="access-code" type="password" autocomplete="off" spellcheck="false" required><button type="submit" class="button primary">Unlock</button></div>
+      </form>
+      <p id="unlock-message" class="message" role="status" aria-live="polite"></p>
+    </section>
+
+    <div id="workspace" hidden>
+      <div class="status-strip" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span><strong id="worker-status">Ready for local inspection</strong>
+        <span id="fingerprint" class="fingerprint"></span>
+      </div>
+      <section class="coverage card" aria-labelledby="coverage-title">
+        <div><p class="eyebrow">ACTIVE DETECTION PROFILE</p><h2 id="coverage-title">Coverage in this session</h2><p id="coverage-profile"></p></div>
+        <div><p class="eyebrow">ROUTING MODE</p><p id="routing-mode" class="mode"></p></div>
+        <ul id="coverage-warnings" class="warning-list"></ul>
+      </section>
+
+      <section class="editor card" aria-labelledby="editor-title">
+        <div class="section-top"><div><p class="eyebrow">02 / INSPECT</p><h2 id="editor-title">Try a text request</h2></div><span class="preview-label">Preview only — no provider contacted</span></div>
+        <div class="sample-row"><label for="samples">Synthetic example</label><select id="samples"><option value="">Choose an example</option><option value="email">Email address</option><option value="card">Payment card</option><option value="secret">Credential block</option><option value="national">Country identifier</option><option value="clean">Clean text</option></select></div>
+        <label for="input-text">Message text</label>
+        <textarea id="input-text" rows="8" maxlength="16384" spellcheck="false" placeholder="Paste text here. Inspection starts only when you click Inspect locally."></textarea>
+        <details class="advanced"><summary>Advanced context</summary><div class="advanced-grid"><div><label for="role">Message role</label><select id="role"></select></div><div><label for="application">Application context</label><select id="application"></select></div></div><p>This simulates a policy context. It does not impersonate an authenticated production application.</p></details>
+        <div class="actions"><button id="inspect" type="button" class="button primary">Inspect locally</button><button id="clear" type="button" class="button secondary">Clear</button><span id="text-count" class="counter">0 characters</span></div>
+        <p id="request-message" class="message" role="status" aria-live="polite"></p>
+      </section>
+
+      <section id="result" class="result" aria-labelledby="result-title" hidden>
+        <div class="section-top"><div><p class="eyebrow">03 / PREVIEW</p><h2 id="result-title">What would happen</h2></div><span id="stale-badge" class="stale" hidden>Stale — inspect again</span></div>
+        <div class="decision card"><div><span class="small-label">EFFECTIVE ACTION</span><strong id="decision-action" class="decision-action"></strong></div><div><span class="small-label">DESTINATION</span><strong id="decision-destination"></strong></div><div><span class="small-label">MATCHED RULE</span><strong id="decision-rule"></strong></div><p id="decision-explanation"></p></div>
+        <div class="preview-grid"><div class="card text-panel"><div class="panel-head"><h3>Original text</h3><span>Resolved detections highlighted</span></div><div id="highlighted-text" class="text-surface" aria-label="Original text with detected spans"></div><h4>Detected entities</h4><ul id="detection-list" class="detection-list"></ul><p id="no-detections" hidden>No entities detected by the enabled detectors. This is not a safety verdict.</p></div><div class="card text-panel"><div class="panel-head"><h3>Projected request text</h3><button id="copy" type="button" class="button text-button" hidden>Copy text</button></div><pre id="outbound-text" class="text-surface"></pre><p id="model-line" class="model-line"></p><p id="output-note" class="output-note">Preview only — no provider contacted. Tokens are ephemeral and may differ from production tokens.</p></div></div>
+        <p class="result-footnote">Offsets are end-exclusive Unicode code points. Overlapping detector candidates may have been suppressed; only resolved spans are shown. Detector scores are outputs, not calibrated probabilities.</p>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,4 +1,4 @@
-"""Command dispatch that never imports the ASGI app for help or diagnostics."""
+"""Lazy command dispatch: diagnostics and playground do not build the gateway app."""
 
 from __future__ import annotations
 
@@ -8,6 +8,9 @@ import importlib.metadata
 import json
 import math
 import os
+import secrets
+import socket
+import sys
 
 
 def _positive_timeout(raw: str) -> float:
@@ -20,9 +23,47 @@ def _positive_timeout(raw: str) -> float:
     return value
 
 
+def _run_playground(port: int) -> int:
+    from gateway.config import Settings
+    from gateway.playground.app import create_playground_app
+
+    try:
+        settings = Settings.from_env()
+        access_code = secrets.token_urlsafe(32)
+        app = create_playground_app(settings, port=port, access_code=access_code)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as check:
+            check.bind(("127.0.0.1", port))
+    except OSError:
+        print(f"Cannot bind 127.0.0.1:{port}; choose another --port.", file=sys.stderr)
+        return 2
+    except Exception:
+        print(
+            "Playground configuration could not be loaded. "
+            "Check policy, filters, routing, and NER settings.",
+            file=sys.stderr,
+        )
+        return 2
+
+    config = app.state.configuration
+    print(f"Cloakspan local privacy playground: http://127.0.0.1:{port}")
+    print(f"Session access code: {access_code}")
+    print(
+        f"Policy: {config.policy_version}; routing: {config.routing_mode}; "
+        f"profile: {config.coverage['profile']}"
+    )
+    for warning in config.warnings:
+        print(f"Coverage note: {warning}")
+    print("Inspection stays in this Python process. No provider is contacted.")
+
+    import uvicorn
+
+    uvicorn.run(app, host="127.0.0.1", port=port, access_log=False, log_level="warning")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="cloakspan", description="Cloakspan gateway and setup checks"
+        prog="cloakspan", description="Cloakspan gateway, local preview, and setup checks"
     )
     commands = parser.add_subparsers(dest="command")
     commands.add_parser("serve", help="start the gateway server (the default)")
@@ -49,6 +90,10 @@ def main(argv: list[str] | None = None) -> int:
         default=5.0,
         help="per-provider probe timeout in seconds (default: 5; overall: 15)",
     )
+    playground = commands.add_parser(
+        "playground", help="inspect sample text in a private loopback browser page"
+    )
+    playground.add_argument("--port", type=int, default=8765, help="loopback port (default: 8765)")
     args = parser.parse_args(argv)
 
     if args.command in (None, "serve"):
@@ -56,6 +101,11 @@ def main(argv: list[str] | None = None) -> int:
 
         run()
         return 0
+
+    if args.command == "playground":
+        if not 1 <= args.port <= 65535:
+            parser.error("--port must be between 1 and 65535")
+        return _run_playground(args.port)
 
     try:
         from gateway.diagnostics.models import CheckResult, DoctorReport
@@ -124,6 +174,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     print(render_json(report) if args.format == "json" else render_text(report))
     return report.exit_code(strict=args.strict)
+
+
+def run(argv: list[str] | None = None) -> int:
+    """Keep compatibility with earlier console script entry points."""
+    return main(argv)
 
 
 if __name__ == "__main__":
