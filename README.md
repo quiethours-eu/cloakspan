@@ -4,6 +4,10 @@
 
 # Cloakspan
 
+Run `cloakspan doctor` to inspect setup problems without starting the gateway.
+See the [setup doctor guide](docs/setup-doctor.md) for JSON output, optional
+model and provider checks, and Compose commands.
+
 **Send context to the model. Keep identities local.**
 
 Cloakspan runs on your own server and hides detected sensitive details before
