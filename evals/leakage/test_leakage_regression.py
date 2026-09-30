@@ -26,7 +26,7 @@ from gateway.detectors.ner import NerDetector
 from gateway.inspection.pipeline import DetectionError, PolicyBlockedError
 from gateway.policy.local_routing import LocalRouting, LocalRoutingViolation
 from gateway.routing.base import ProviderError
-from tests.conftest import VALID_LT_CODE, VALID_LV_CODE
+from tests.fixtures import VALID_LT_CODE, VALID_LV_CODE
 
 
 def payload(content: str, model: str = "gpt-4o-mini") -> dict:
