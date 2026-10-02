@@ -17,7 +17,7 @@ keywords = [
   "self-hosted",
 ]
 classifiers = [
-  "Development Status :: 2 - Pre-Alpha",
+  "Development Status :: 3 - Alpha",
   "Framework :: FastAPI",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3",
@@ -55,6 +55,7 @@ routing = ["litellm>=1.60,<2.0"]
 postgres = ["asyncpg>=0.29,<1.0"]
 
 dev = [
+  "build>=1.2,<2.0",
   # >=9.0.3 : pytest 8.4.2 carries PYSEC-2026-1845, fixed in 9.0.3. The upper
   # bound was <9.0, which pinned us to the vulnerable line -- caught by
   # `make security` (pip-audit), which is exactly what that gate is for.
@@ -69,6 +70,12 @@ dev = [
 [project.scripts]
 cloakspan = "gateway.cli:main"
 secure-ai-gateway = "gateway.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/quiethours-eu/cloakspan"
+Documentation = "https://github.com/quiethours-eu/cloakspan#readme"
+Issues = "https://github.com/quiethours-eu/cloakspan/issues"
+Changelog = "https://github.com/quiethours-eu/cloakspan/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling>=1.25"]

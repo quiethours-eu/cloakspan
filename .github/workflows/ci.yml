@@ -25,6 +25,8 @@ permissions:
 
 env:
   PYTHON_VERSION: "3.12"
+  RELEASE_TAG: "v0.1.0-alpha.1"
+  RELEASE_VERSION: "0.1.0a1"
 
 jobs:
   test:
@@ -110,6 +112,35 @@ jobs:
           name: evals-report
           path: evals-report.json
 
+  package:
+    name: installable package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: python -m pip install "build>=1.2,<2.0"
+      - name: build wheel from the source distribution
+        run: python -m build
+      - name: verify both packages outside the checkout
+        run: python scripts/smoke_package.py dist
+      - name: prepare downloadable files and checksums
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cp deployment/requirements-runtime.lock dist/
+          cd dist
+          sha256sum *.whl *.tar.gz requirements-runtime.lock > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: python-distributions
+          path: dist/
+
   supply-chain:
     name: SBOM, licences, dependencies
     runs-on: ubuntu-latest
@@ -139,6 +170,9 @@ jobs:
           pip install pip-audit
           pip-audit --strict --desc --requirement deployment/requirements.lock \
             --format json --output dist/pip-audit.json
+          pip-audit --strict --desc --require-hashes \
+            --requirement deployment/requirements-runtime.lock \
+            --format json --output dist/pip-audit-runtime.json
 
       - name: committed secrets
         env:
@@ -199,6 +233,8 @@ jobs:
       # root filesystem, dropped capabilities, and zero canary occurrences in the
       # full log stream.
       - name: container hardening tests
+        env:
+          SAG_TEST_IMAGE: secure-ai-gateway:ci
         run: python -m pytest tests/test_container_hardening.py -m container -q
 
       - name: prepare evidence directory
@@ -225,15 +261,77 @@ jobs:
       - name: enforce image vulnerability policy
         run: python scripts/vulnerability_policy.py dist/trivy.json
 
+      - name: preserve the exact tested image for publication
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: docker save secure-ai-gateway:ci | gzip > "$RUNNER_TEMP/release-image.tar.gz"
+
+      - uses: actions/upload-artifact@v4
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: release-image
+          path: ${{ runner.temp }}/release-image.tar.gz
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: container-evidence
           path: dist/
 
+  draft-release:
+    name: prepare alpha draft
+    needs: [test, detection-quality, supply-chain, container, package]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: alpha-release-draft
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: dist
+      - name: create or refresh an unpublished prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python -c 'import os, tomllib; assert tomllib.load(open("pyproject.toml", "rb"))["project"]["version"] == os.environ["RELEASE_VERSION"]'
+          # A slower, older build must not replace a newer draft.
+          current="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+          if [ "$current" != "$GITHUB_SHA" ]; then
+            echo "A newer main commit exists; leaving its draft untouched."
+            exit 0
+          fi
+          state="$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            --jq ".[] | select(.tag_name == \"$RELEASE_TAG\") | .draft")"
+          if [ "$state" = false ]; then
+            echo "The release is already published; leaving it untouched."
+            exit 0
+          fi
+          notes="$RUNNER_TEMP/release-notes.md"
+          cp "docs/releases/$RELEASE_TAG.md" "$notes"
+          cat >> "$notes" <<EOF
+
+          Prepared from commit [$GITHUB_SHA](https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA).
+          [Validation run](https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID).
+          EOF
+          if [ "$state" = true ]; then
+            gh release edit "$RELEASE_TAG" --draft --prerelease --target "$GITHUB_SHA" \
+              --title "Cloakspan $RELEASE_TAG" --notes-file "$notes"
+            gh release upload "$RELEASE_TAG" dist/* --clobber
+          else
+            gh release create "$RELEASE_TAG" dist/* --draft --prerelease \
+              --target "$GITHUB_SHA" --title "Cloakspan $RELEASE_TAG" --notes-file "$notes"
+          fi
+
   release:
-    name: sign and attest
-    needs: [test, detection-quality, supply-chain, container]
+    name: sign, attest, and publish alpha
+    needs: [test, detection-quality, supply-chain, container, package]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -243,19 +341,40 @@ jobs:
       attestations: write
     steps:
       - uses: actions/checkout@v4
+      - name: enforce the first-alpha publication gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          test "$GITHUB_REF_NAME" = "$RELEASE_TAG"
+          test -s "docs/releases/$RELEASE_TAG-staging.md" || {
+            echo "::error::The required staging rehearsal report is missing."
+            exit 1
+          }
+          if grep -q '^\*\*Draft: not published\.' "docs/releases/$RELEASE_TAG.md"; then
+            echo "::error::Release notes still mark this alpha as blocked."
+            exit 1
+          fi
+          test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-image
+          path: ${{ runner.temp }}/release-image
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: dist
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: build and push the release image
+      - name: push the exact tested release image
         id: push
         run: |
-          source deployment/docker/base-image.env
           TAG="ghcr.io/${{ github.repository }}:${GITHUB_REF_NAME#v}"
-          docker build -f deployment/docker/Dockerfile \
-            --build-arg BASE_REF="$BASE_IMAGE@$BASE_DIGEST" -t "$TAG" .
+          docker load --input "$RUNNER_TEMP/release-image/release-image.tar.gz"
+          docker tag secure-ai-gateway:ci "$TAG"
           docker push "$TAG"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "digest=$(docker inspect --format='{{index .RepoDigests 0}}' "$TAG" | cut -d@ -f2)" >> "$GITHUB_OUTPUT"
@@ -278,3 +397,11 @@ jobs:
           echo "cosign verify ${{ steps.push.outputs.tag }} \\"
           echo "  --certificate-identity-regexp 'https://github.com/${{ github.repository }}/.*' \\"
           echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com"
+
+      - name: publish the GitHub prerelease after signing and attestation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$RELEASE_TAG" dist/* --clobber
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease \
+            --notes-file "docs/releases/$RELEASE_TAG.md"
