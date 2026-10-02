@@ -21,6 +21,8 @@ the model's reply.
 [![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2ea44f)](LICENSE)
 
+![Cloakspan illustrated offline demo: tokenize and restore](docs/assets/cloakspan-demo.gif)
+
 Use it for customer support, internal assistants, and other text workflows
 where you need to control what reaches a model. You run the infrastructure and
 choose the model endpoints and handling rules. Custom filters work with your
