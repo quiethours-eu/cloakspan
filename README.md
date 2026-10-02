@@ -4,12 +4,6 @@
 
 # Cloakspan
 
-Run `cloakspan doctor` to inspect setup problems without starting the gateway.
-See the [setup doctor guide](docs/setup-doctor.md) for JSON output, optional
-model and provider checks, and Compose commands.
-
-Try a local inspection preview with `cloakspan playground` (or `python -m gateway.cli playground`). It opens at the loopback URL printed in the terminal and contacts no model provider. See the [local privacy playground guide](docs/local-privacy-playground.md).
-
 **Send context to the model. Keep identities local.**
 
 Cloakspan runs on your own server and hides detected sensitive details before
@@ -17,11 +11,66 @@ your app sends text to an AI model. For example, it replaces an email address
 with a placeholder, then puts the address back if that placeholder appears in
 the model's reply.
 
+**[Try it locally](#try-it-locally)** ·
+[Watch the terminal demo](#try-the-offline-demo) ·
+[Connect your app](#connect-a-client) ·
+[Releases](https://github.com/quiethours-eu/cloakspan/releases)
+
 [![Status: alpha](https://img.shields.io/badge/status-alpha-f59e0b)](#current-limits)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2ea44f)](LICENSE)
 
 ![Cloakspan illustrated offline demo: tokenize and restore](docs/assets/cloakspan-demo.gif)
+
+Synthetic example: your app sends `alex@example.com`; the model sees a scoped
+token; Cloakspan restores the address when an approved token appears in the
+reply. The illustration uses a deterministic mock provider.
+
+## Try it locally
+
+See which values Cloakspan detects and what it would send, using the local
+browser playground. **No API key, model download, Docker, or provider account
+is needed.** Installation needs internet access; inspection runs offline.
+
+Requirements: **Python 3.12 or newer** and **Git**. Start in a directory where
+you want to keep the project.
+
+macOS or Linux:
+
+```bash
+git clone https://github.com/quiethours-eu/cloakspan.git
+cd cloakspan
+python3 -m venv .venv
+.venv/bin/python -m pip install .
+.venv/bin/cloakspan playground
+```
+
+Windows PowerShell:
+
+```powershell
+git clone https://github.com/quiethours-eu/cloakspan.git
+cd cloakspan
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install .
+.\.venv\Scripts\cloakspan.exe playground
+```
+
+Open **http://127.0.0.1:8765** and enter the session access code printed in the
+terminal. Choose the **Email address** sample, then **Inspect locally**. The result
+shows `TRANSFORM`: the original address is highlighted, and the projected
+request contains an `EMAIL_ADDRESS` token instead of the address. Try the
+credential sample to see a blocked request. Press **Ctrl+C** in the terminal
+to stop the playground.
+
+The playground previews inspection and routing; it does not call a model or
+simulate response restoration. The [offline demo](#try-the-offline-demo) below
+shows restoration too. For another port or custom settings, see the
+[playground guide](docs/local-privacy-playground.md).
+
+This is an **alpha for local evaluation and synthetic-data pilots**. See the
+[current limits](#current-limits) before connecting a real workflow.
+
+## Where it fits
 
 Use it for customer support, internal assistants, and other text workflows
 where you need to control what reaches a model. You run the infrastructure and
@@ -56,32 +105,39 @@ route the request to a local model, or block it before any provider call.
 
 ## Try the offline demo
 
-Requirements: Python 3.12 or newer and Git. Installing the dependencies may need
-internet access the first time. The demo itself uses a deterministic mock
-provider and makes no network requests.
+After the [local setup](#try-it-locally), run this from the `cloakspan` directory.
+If the playground is running, stop it with **Ctrl+C** first. The demo uses a
+deterministic mock provider and makes no network requests.
 
 macOS or Linux:
 
 ```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install -e ".[dev]"
 .venv/bin/python scripts/demo.py
 ```
 
 Windows PowerShell:
 
 ```powershell
-py -3 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 .\.venv\Scripts\python.exe scripts\demo.py
 ```
 
-If you have GNU Make, `make setup && make demo` runs the same path.
+If you have GNU Make, `make demo` runs the same demo after setup. Contributors
+can use `make setup` to install the additional development tools.
 
 The demo covers email and payment-card tokenization, credential blocking,
 a customer dictionary term, and a forged-token restoration attempt. It also
 shows a country-specific identifier routed locally using a synthetic Latvian
 personal code. It prints exactly what each provider received.
+
+### Setup help
+
+Run `.venv/bin/cloakspan doctor` on macOS/Linux, or
+`.\.venv\Scripts\cloakspan.exe doctor` on Windows, to inspect gateway settings
+without starting the gateway. Provider and secret warnings are expected for
+the provider-free playground; configure them when you connect an app.
+
+See the [setup doctor guide](docs/setup-doctor.md) for JSON output, optional
+model and provider checks, and Compose commands.
 
 ## Connect a client
 

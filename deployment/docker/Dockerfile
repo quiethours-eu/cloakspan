@@ -19,12 +19,14 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
 
 WORKDIR /build
 COPY pyproject.toml README.md LICENSE ./
+COPY deployment/requirements-runtime.lock ./requirements-runtime.lock
 COPY gateway ./gateway
 COPY recognizers ./recognizers
 COPY deployment/policies/default.yaml ./deployment/policies/default.yaml
 
 RUN python -m venv /opt/venv \
- && /opt/venv/bin/pip install --no-cache-dir .
+ && /opt/venv/bin/pip install --no-cache-dir --require-hashes -r requirements-runtime.lock \
+ && /opt/venv/bin/pip install --no-cache-dir --no-deps .
 
 # ---------------------------------------------------------------------------
 

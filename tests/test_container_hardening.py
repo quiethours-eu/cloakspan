@@ -18,6 +18,7 @@ logger -- is in scope, which is the point.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import time
@@ -26,7 +27,8 @@ import urllib.request
 
 import pytest
 
-IMAGE = "secure-ai-gateway:test"
+PREBUILT_IMAGE = os.environ.get("SAG_TEST_IMAGE")
+IMAGE = PREBUILT_IMAGE or "secure-ai-gateway:test"
 CONTAINER = "sag-container-test"
 PORT = 18080
 
@@ -46,7 +48,9 @@ TOKEN_KEY = "22" * 32
 
 pytestmark = [
     pytest.mark.container,
-    pytest.mark.skipif(shutil.which("docker") is None, reason="Docker is not installed"),
+    pytest.mark.skipif(
+        shutil.which("docker") is None and not PREBUILT_IMAGE, reason="Docker is not installed"
+    ),
 ]
 
 
@@ -90,6 +94,11 @@ _UNREACHABLE_REGISTRY = (
 
 
 def _build_image(repo_root) -> None:
+    if PREBUILT_IMAGE:
+        # CI must test the same image it scans and publishes. A missing image
+        # is a failure, not permission to rebuild different bytes.
+        _docker("image", "inspect", PREBUILT_IMAGE)
+        return
     result = _docker(
         "build",
         "-f",
@@ -115,6 +124,8 @@ def _build_image(repo_root) -> None:
 @pytest.fixture(scope="module")
 def container(request):
     if not _docker_available():
+        if PREBUILT_IMAGE:
+            pytest.fail("SAG_TEST_IMAGE requires a reachable Docker daemon; no image was verified")
         pytest.skip("Docker daemon is not reachable")
 
     _build_image(request.config.rootpath)

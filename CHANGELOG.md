@@ -10,6 +10,13 @@ project remains alpha.
 
 ### Added
 
+- Complete macOS/Linux and Windows playground quickstarts using only runtime
+  dependencies, with a synthetic example and the expected result.
+- Installable alpha wheel and source archive, isolated package smoke checks,
+  and draft release preparation after successful CI.
+- A hash-verified runtime dependency lock and a registry-resolved container
+  base image digest for release preparation.
+
 - `SAG_LOCAL_ROUTING` (GDPR mode) with the values `off` (default), `detected`,
   and `all`. `detected` sends every request in which any detector found
   anything to the `local` destination, pseudonymised, and requires an NER
@@ -30,6 +37,10 @@ project remains alpha.
 - Production startup validation for policy destinations and API keys.
 
 ### Changed
+
+- README leads with the benefit, demo, and local playground; setup diagnostics
+  follow the getting-started path.
+- Removed pasted terminal output from the Apache-2.0 licence file.
 
 - The unreleased `deployment/policies/auto-local.yaml` policy is removed in
   favour of `SAG_LOCAL_ROUTING=detected`. Pointing `SAG_POLICY_PATH` at it now
@@ -56,7 +67,9 @@ project remains alpha.
   The HTTP API already returned 422 for all of these; direct callers of
   `SecurityPipeline.process` now get `DetectionError`.
 
-## [0.1.0-alpha.1] - Unreleased
+## [0.1.0-alpha.1] - In preparation
 
 First public evaluation release. A tagged release remains blocked until the
-documented security and operational evidence is complete.
+documented security and operational evidence is complete. See the
+[draft release notes](docs/releases/v0.1.0-alpha.1.md) and
+[release procedure](docs/releases/README.md).

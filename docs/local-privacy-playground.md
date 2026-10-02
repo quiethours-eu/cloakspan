@@ -1,5 +1,21 @@
 # Local privacy playground
 
+## First run
+
+Follow the [README quickstart](../README.md#try-it-locally) to clone the project,
+create a virtual environment, and install only the runtime dependencies. The
+playground needs no API key, provider account, Docker, or NER model.
+
+From the project directory, start `.venv/bin/cloakspan playground` on
+macOS/Linux, or `.\.venv\Scripts\cloakspan.exe playground` in Windows PowerShell.
+Open the printed loopback URL and enter the session access code from the
+terminal. Choose **Email address**, then **Inspect locally**. Under the bundled default
+policy, the decision is `TRANSFORM` and the projected request replaces
+`alex@example.com` with an `EMAIL_ADDRESS` token. The credential sample is
+blocked with no projected outbound text. Stop the app with **Ctrl+C**.
+
+## Settings and behavior
+
 Run `cloakspan playground` and open the printed `http://127.0.0.1:8765` address. Enter the fresh session access code from the terminal. Use `cloakspan playground --port 8766` when the default port is busy. Both `cloakspan` and `secure-ai-gateway` keep their no-argument server behavior.
 
 The page previews one text message at a time. It uses the inherited `SAG_POLICY_PATH`, `SAG_FILTERS_PATH`, detector settings, and `SAG_LOCAL_ROUTING`. It does not load a `.env` file automatically. The application selector contains `default` and the application names used in policy rules; it simulates policy context without testing production authentication. Synthetic examples are illustrative under the bundled policy; operator rules can change the result.

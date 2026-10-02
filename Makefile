@@ -10,7 +10,7 @@ endif
 .PHONY: help setup test test-container lint security demo up down clean fmt \
         evals evals-aliased evals-holdout evals-json corpus leakage \
         sbom licences lock pin-base-image image release-image benchmark \
-        benchmark-concurrency release-artifacts
+        benchmark-concurrency release-artifacts package
 
 help:
 	@echo "setup          Create the virtualenv and install dev dependencies"
@@ -38,6 +38,7 @@ help:
 	@echo "benchmark      Measure the detection path on this machine"
 	@echo "benchmark-concurrency  Throughput and event-loop responsiveness under load"
 	@echo "release-artifacts  Source SBOM + licences + benchmarks, into dist/"
+	@echo "package        Build and verify the installable wheel and source archive"
 
 setup:
 	python -m venv $(VENV)
@@ -124,6 +125,10 @@ security:
 # ---------------------------------------------------------------------------
 # Release engineering
 # ---------------------------------------------------------------------------
+
+package:
+	$(PY) -m build
+	$(PY) scripts/smoke_package.py dist
 
 DIST := dist
 BASE_IMAGE := $(shell grep '^BASE_IMAGE=' deployment/docker/base-image.env | cut -d= -f2)

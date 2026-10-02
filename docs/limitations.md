@@ -76,8 +76,9 @@ closed.
   scores primarily test segmentation and known boundary cases.
 - Performance numbers are machine-local regression signals, not an SLO or a
   published capacity claim.
-- The base image is still referenced without a release digest, so the release
-  image gate intentionally refuses to publish.
+- Release preparation pins the base image and verifies hashes for runtime
+  dependencies. A passing build does not establish operational readiness:
+  the staging install/upgrade/rollback rehearsal is still outstanding.
 
 See [security invariants](security-invariants.md) for enforcement points. Open
 risks and planned mitigations are summarized below.
