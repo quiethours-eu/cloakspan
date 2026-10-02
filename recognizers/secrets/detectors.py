@@ -39,7 +39,8 @@ _ANTHROPIC_KEY = re.compile(r"\bsk-ant-[A-Za-z0-9_-]{20,}\b")
 _GITHUB_TOKEN = re.compile(r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36}\b")
 _SLACK_TOKEN = re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b")
 
-_SIMPLE_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (_PRIVATE_KEY, "PRIVATE_KEY"),
     (_AWS_ACCESS_KEY, "AWS_ACCESS_KEY"),
     (_JWT, "JWT"),
     (_ANTHROPIC_KEY, "ANTHROPIC_API_KEY"),
@@ -58,19 +59,7 @@ class SecretDetector:
     def detect(self, text: str) -> list[Span]:
         spans: list[Span] = []
 
-        for match in _PRIVATE_KEY.finditer(text):
-            spans.append(
-                Span(
-                    start=match.start(),
-                    end=match.end(),
-                    entity_type="PRIVATE_KEY",
-                    text=match.group(0),
-                    score=Confidence.CERTAIN.value,
-                    detector=self.name,
-                )
-            )
-
-        for pattern, entity_type in _SIMPLE_PATTERNS:
+        for pattern, entity_type in _PATTERNS:
             for match in pattern.finditer(text):
                 spans.append(
                     Span(

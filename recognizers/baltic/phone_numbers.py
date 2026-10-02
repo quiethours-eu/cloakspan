@@ -102,11 +102,7 @@ def _has_context(text: str, start: int) -> bool:
 
 def _national_plan_match(national: str) -> bool:
     """Does this bare national number fit any Baltic plan?"""
-    return any(
-        len(national) in ((lengths,) if isinstance(lengths, int) else lengths)
-        and national.startswith(leading)
-        for leading, lengths in _PLANS.values()
-    )
+    return any(_plan_allows(country_code, national) for country_code in _PLANS)
 
 
 class PhoneNumberDetector:
