@@ -1,5 +1,8 @@
 <p align="left">
-  <img src="docs/assets/cloakspan-logo.svg" alt="Cloakspan" width="480">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/cloakspan-logo-dark.svg">
+    <img src="docs/assets/cloakspan-logo.svg" alt="Cloakspan" width="480">
+  </picture>
 </p>
 
 # Cloakspan
@@ -16,6 +19,7 @@ the model's reply.
 [Connect your app](#connect-a-client) ·
 [Releases](https://github.com/quiethours-eu/cloakspan/releases)
 
+[![CI](https://github.com/quiethours-eu/cloakspan/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/quiethours-eu/cloakspan/actions/workflows/ci.yml)
 [![Status: alpha](https://img.shields.io/badge/status-alpha-f59e0b)](#current-limits)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2ea44f)](LICENSE)

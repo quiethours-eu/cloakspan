@@ -10,6 +10,8 @@ project remains alpha.
 
 ### Added
 
+- Dark-theme logo for the README, and a CI status badge.
+
 - Complete macOS/Linux and Windows playground quickstarts using only runtime
   dependencies, with a synthetic example and the expected result.
 - Installable alpha wheel and source archive, isolated package smoke checks,
