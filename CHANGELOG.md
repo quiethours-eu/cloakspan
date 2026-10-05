@@ -53,6 +53,12 @@ project remains alpha.
 - Compose now uses production mode and requires operator-provided secrets and
   provider endpoints instead of a known API key and mock fallbacks.
 
+### Fixed
+
+- The Windows package check stops the playground's whole process tree and
+  retries removing its work directory while Windows releases the files, so an
+  extension module that is still mapped no longer fails a correct package.
+
 ### Security
 
 - Production refuses to start when a policy can select an unconfigured provider
