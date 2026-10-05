@@ -38,6 +38,10 @@ project remains alpha.
 
 ### Changed
 
+- CI uses the current major versions of its GitHub actions. The release job
+  also requests `artifact-metadata: write`, which build-provenance attestation
+  now needs to record where the pushed image is stored.
+
 - README leads with the benefit, demo, and local playground; setup diagnostics
   follow the getting-started path.
 - Removed pasted terminal output from the Apache-2.0 licence file.
