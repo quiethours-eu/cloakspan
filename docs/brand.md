@@ -13,6 +13,7 @@ Tagline: **Send context to the model. Keep identities local.**
 | Asset | Use |
 |---|---|
 | [Logo](assets/cloakspan-logo.svg) | README and documentation; includes its own light background |
+| [Dark logo](assets/cloakspan-logo-dark.svg) | Dark themes; the mark sits on deep blue without its tile, as in the social preview |
 | [Vector icon](assets/cloakspan-icon.svg) | App icon, avatar, or SVG favicon |
 | [PNG icon](assets/cloakspan-icon.png) | 512 × 512 avatar or application artwork |
 | [Social preview](assets/social-preview.png) | 1280 × 640 GitHub repository preview |

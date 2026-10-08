@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -13,9 +15,56 @@ import time
 import tomllib
 import urllib.error
 import urllib.request
+from collections.abc import Iterator
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+@contextlib.contextmanager
+def work_directory() -> Iterator[Path]:
+    """A temporary directory that is removed once Windows has released its files.
+
+    Windows ends processes asynchronously: a playground process that has just
+    been stopped can still map a compiled extension from the virtual
+    environment for a moment, and removing the directory then fails with
+    WinError 5 although the package is fine. Retry briefly instead.
+    """
+    path = Path(tempfile.mkdtemp(prefix="cloakspan-package-"))
+    try:
+        yield path
+    finally:
+        for attempt in range(40):
+            try:
+                shutil.rmtree(path)
+                break
+            except PermissionError:
+                if os.name != "nt" or attempt == 39:
+                    raise
+                time.sleep(0.25)
+
+
+def stop_playground(process: subprocess.Popen[bytes]) -> None:
+    """Stop the playground and every process it started.
+
+    On Windows the installed ``cloakspan.exe`` is a launcher. The interpreter
+    and the playground's inspection worker run as its descendants and outlive
+    a plain terminate() of the launcher, so end the whole process tree.
+    """
+    if os.name == "nt":
+        subprocess.run(  # noqa: S603, S607 - fixed system tool and argv, no shell
+            ["taskkill", "/F", "/T", "/PID", str(process.pid)],  # noqa: S607 - resolved from PATH
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+    else:
+        process.terminate()
+    try:
+        process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=10)
 
 
 def check_artifact(artifact: Path) -> None:
@@ -26,8 +75,7 @@ def check_artifact(artifact: Path) -> None:
     }
     environment["PYTHONUNBUFFERED"] = "1"
     environment["PYTHONUTF8"] = "1"
-    with tempfile.TemporaryDirectory(prefix="cloakspan-package-") as directory:
-        work = Path(directory)
+    with work_directory() as work:
         venv = work / "venv"
         subprocess.run(  # noqa: S603 - fixed executable and argv, no shell
             [sys.executable, "-m", "venv", str(venv)],
@@ -126,12 +174,7 @@ def check_artifact(artifact: Path) -> None:
                 ):
                     raise RuntimeError(f"{artifact.name}: installed playground failed inspection")
             finally:
-                process.terminate()
-                try:
-                    process.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait(timeout=10)
+                stop_playground(process)
         print(f"Verified {artifact.name}: CLI, bundled assets, policy, and local email inspection.")
 
 

@@ -10,6 +10,8 @@ project remains alpha.
 
 ### Added
 
+- Dark-theme logo for the README, and a CI status badge.
+
 - Complete macOS/Linux and Windows playground quickstarts using only runtime
   dependencies, with a synthetic example and the expected result.
 - Installable alpha wheel and source archive, isolated package smoke checks,
@@ -38,6 +40,10 @@ project remains alpha.
 
 ### Changed
 
+- CI uses the current major versions of its GitHub actions. The release job
+  also requests `artifact-metadata: write`, which build-provenance attestation
+  now needs to record where the pushed image is stored.
+
 - README leads with the benefit, demo, and local playground; setup diagnostics
   follow the getting-started path.
 - Removed pasted terminal output from the Apache-2.0 licence file.
@@ -52,6 +58,12 @@ project remains alpha.
 
 - Compose now uses production mode and requires operator-provided secrets and
   provider endpoints instead of a known API key and mock fallbacks.
+
+### Fixed
+
+- The Windows package check stops the playground's whole process tree and
+  retries removing its work directory while Windows releases the files, so an
+  extension module that is still mapped no longer fails a correct package.
 
 ### Security
 
