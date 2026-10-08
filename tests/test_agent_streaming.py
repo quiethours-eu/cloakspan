@@ -182,11 +182,11 @@ def _messages(deltas, *, tool=False):
 
 
 @pytest.fixture
-def restoration(ctx, minter, vault):
+def restoration(ctx, minter, vault, tmp_path):
     provenance = TokenProvenance()
     token = minter.mint(ctx, "PERSON", "Ilze Bērziņa", provenance).token
     vault.put(ctx, token, "Ilze Bērziņa", "v1")
-    return token, provenance, RestorationEngine(vault), ToolRegistry("/workspace")
+    return token, provenance, RestorationEngine(vault), ToolRegistry(tmp_path)
 
 
 @pytest.mark.parametrize("protocol", ["responses", "messages"])
