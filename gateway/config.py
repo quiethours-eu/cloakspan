@@ -258,6 +258,20 @@ class Settings:
     custom_patterns: tuple[tuple[str, str], ...] = ()
     filters_path: Path | None = None
 
+    # Separate, experimental coding-agent milestone. Disabled by default.
+    enable_responses: bool = False
+    enable_messages: bool = False
+    agent_workspace_root: str = ""
+    agent_max_concurrent: int = 4
+    agent_detector_timeout_seconds: float = 15.0
+    agent_stream_idle_seconds: float = 120.0
+    agent_stream_total_seconds: float = 600.0
+    agent_max_event_bytes: int = 1_048_576
+    agent_max_output_bytes: int = 8_388_608
+    messages_base_url: str = ""
+    messages_api_key: str = ""
+    messages_model: str = ""
+
     @classmethod
     def from_env(cls) -> Settings:
         return cls.from_mapping(os.environ)
@@ -309,6 +323,24 @@ class Settings:
             egress_allow_private=parsed.flags.get("SAG_EGRESS_ALLOW_PRIVATE", False),
             dictionary_terms=tuple(t.strip() for t in terms.split(",") if t.strip()),
             custom_patterns=tuple(patterns),
+            enable_responses=parsed.flags.get("SAG_ENABLE_RESPONSES", False),
+            enable_messages=parsed.flags.get("SAG_ENABLE_MESSAGES", False),
+            agent_workspace_root=env.get("SAG_AGENT_WORKSPACE_ROOT", ""),
+            agent_max_concurrent=int(parsed.numbers.get("SAG_AGENT_MAX_CONCURRENT", 4)),
+            agent_detector_timeout_seconds=float(
+                parsed.numbers.get("SAG_AGENT_DETECTOR_TIMEOUT_SECONDS", 15)
+            ),
+            agent_stream_idle_seconds=float(
+                parsed.numbers.get("SAG_AGENT_STREAM_IDLE_SECONDS", 120)
+            ),
+            agent_stream_total_seconds=float(
+                parsed.numbers.get("SAG_AGENT_STREAM_TOTAL_SECONDS", 600)
+            ),
+            agent_max_event_bytes=int(parsed.numbers.get("SAG_AGENT_MAX_EVENT_BYTES", 1048576)),
+            agent_max_output_bytes=int(parsed.numbers.get("SAG_AGENT_MAX_OUTPUT_BYTES", 8388608)),
+            messages_base_url=env.get("SAG_MESSAGES_BASE_URL", ""),
+            messages_api_key=env.get("SAG_MESSAGES_API_KEY", ""),
+            messages_model=env.get("SAG_MESSAGES_MODEL", ""),
         )
 
 

@@ -10,14 +10,26 @@ published because naming projects with unreported security issues would create
 an uncoordinated disclosure. They are available to auditors and reviewers on
 request.
 
-Nothing in this file depends on that record: every component below is consumed
-as an installable package under its own licence, and no third-party code has
-been copied into this codebase.
+Nothing in this file depends on that record. Dependencies below are consumed
+as installable packages under their own licences. The public Codex patch grammar
+is the explicitly attributed source exception below; inspection, restoration
+and grammar validation are implemented independently.
 
-**No code has been copied from any third-party repository into this codebase.**
-Every third-party component listed here is consumed as an installable package.
-Algorithms studied during research were reimplemented independently
+Algorithms studied during the earlier research were reimplemented independently
 (clean-room); see the CLEAN_ROOM_REIMPLEMENTATION rows in the provenance file.
+
+## OpenAI Codex patch grammar
+
+The `APPLY_PATCH_LARK_GRAMMAR` constant in `gateway/tools/patches.py` reproduces
+the unmodified public wire grammar from OpenAI Codex 0.161.0,
+commit `979011409de0a60b52f179721948e65531d26144`,
+[codex-rs/core/assets/tools/apply_patch.lark](https://github.com/openai/codex/blob/979011409de0a60b52f179721948e65531d26144/codex-rs/core/assets/tools/apply_patch.lark).
+It is used to recognize that exact tool declaration; no third-party parser or
+tool executor is bundled.
+
+OpenAI Codex · Copyright 2025 OpenAI · Apache License 2.0.
+The full licence text is in [LICENSE](LICENSE). This notice is included in the
+wheel and source distribution.
 
 ---
 
@@ -102,7 +114,8 @@ prior written permission.
 
 ## Apache License 2.0
 
-Applies to `cryptography` (as elected) and `asyncpg`. The full text is in
+Applies to the OpenAI Codex patch grammar, `cryptography` (as elected) and `asyncpg`.
+The full text is in
 [LICENSE](LICENSE), which is also this project's own licence.
 
 ## Mozilla Public License 2.0

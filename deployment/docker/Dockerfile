@@ -18,7 +18,7 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1
 
 WORKDIR /build
-COPY pyproject.toml README.md LICENSE ./
+COPY pyproject.toml README.md LICENSE THIRD_PARTY_NOTICES.md ./
 COPY deployment/requirements-runtime.lock ./requirements-runtime.lock
 COPY gateway ./gateway
 COPY recognizers ./recognizers
@@ -47,6 +47,9 @@ RUN addgroup -g 10001 -S gateway \
 
 COPY --from=builder /opt/venv /opt/venv
 COPY --chown=root:root deployment/policies /etc/secure-ai-gateway/policies
+# Source checkouts may use a private umask. The service user must still be
+# able to read the bundled policy; mounted operator files keep their own modes.
+RUN chmod -R a+rX /etc/secure-ai-gateway/policies
 
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \

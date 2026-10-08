@@ -1,0 +1,160 @@
+{
+  "evidence_version": 1,
+  "date": "2026-10-08",
+  "origin": "Actual pinned public CLI binaries against the source gateway and a deterministic localhost provider; disposable synthetic repositories only.",
+  "versions": {
+    "codex": "0.161.0",
+    "claude": "2.1.293"
+  },
+  "platform": "Linux x86_64",
+  "provider": "Local deterministic mock; no live provider credentials or model.",
+  "reproduce": "python scripts/public_client_check.py --workflow --compact --codex-binary /absolute/path/to/codex --claude-binary /absolute/path/to/claude --output-dir /tmp/new-empty-synthetic-check",
+  "requests": 21,
+  "http_statuses": [
+    200
+  ],
+  "runs": [
+    {
+      "client": "codex",
+      "phase": "initial",
+      "resume": false,
+      "returncode": 0,
+      "completed": true,
+      "request_count": 4,
+      "provider_request_count": 4,
+      "successful": true
+    },
+    {
+      "client": "codex",
+      "phase": "resume",
+      "resume": true,
+      "returncode": 0,
+      "completed": true,
+      "request_count": 1,
+      "provider_request_count": 1,
+      "successful": true
+    },
+    {
+      "client": "codex",
+      "phase": "long-session",
+      "resume": true,
+      "returncode": 0,
+      "completed": true,
+      "request_count": 3,
+      "provider_request_count": 3,
+      "successful": true
+    },
+    {
+      "client": "codex",
+      "phase": "post-compaction-resume",
+      "resume": true,
+      "returncode": 0,
+      "completed": true,
+      "request_count": 1,
+      "provider_request_count": 1,
+      "successful": true
+    },
+    {
+      "client": "claude",
+      "phase": "initial",
+      "resume": false,
+      "returncode": 0,
+      "completed": true,
+      "request_count": 4,
+      "provider_request_count": 4,
+      "successful": true
+    },
+    {
+      "client": "claude",
+      "phase": "resume",
+      "resume": true,
+      "returncode": 0,
+      "completed": true,
+      "request_count": 1,
+      "provider_request_count": 1,
+      "successful": true
+    },
+    {
+      "client": "claude",
+      "phase": "long-session",
+      "resume": true,
+      "returncode": 0,
+      "completed": true,
+      "request_count": 3,
+      "provider_request_count": 4,
+      "successful": true
+    },
+    {
+      "client": "claude",
+      "phase": "post-compaction-resume",
+      "resume": true,
+      "returncode": 0,
+      "completed": true,
+      "request_count": 2,
+      "provider_request_count": 3,
+      "successful": true
+    }
+  ],
+  "outcomes": {
+    "codex": {
+      "runs_successful": true,
+      "stable_session_scope": true,
+      "edited_source": true,
+      "test_execution_seen": true,
+      "provider_requests": 9,
+      "canary_transformed": true,
+      "audited_transformation": true,
+      "compactions": 1,
+      "native_compaction_event": false,
+      "persisted_compaction_record": true,
+      "long_history_read": true,
+      "long_history_summarized": true,
+      "summary_replay_inspected": true,
+      "restored_post_compaction_followup": true,
+      "automatic_compaction_qualified": true
+    },
+    "claude": {
+      "runs_successful": true,
+      "stable_session_scope": true,
+      "edited_source": true,
+      "test_execution_seen": true,
+      "provider_requests": 12,
+      "canary_transformed": true,
+      "audited_transformation": true,
+      "compactions": 2,
+      "native_compaction_event": true,
+      "persisted_compaction_record": false,
+      "long_history_read": true,
+      "long_history_summarized": true,
+      "summary_replay_inspected": true,
+      "restored_post_compaction_followup": true,
+      "automatic_compaction_qualified": true
+    }
+  },
+  "privacy_checks": {
+    "upstream_canary_absent": true,
+    "audit_canary_absent": true,
+    "audit_present": true,
+    "audit_metadata_only": true,
+    "client_metadata_consumed": true,
+    "each_canary_transformed": true,
+    "each_transformation_audited": true,
+    "client_identifiers_consumed": true
+  },
+  "compaction_controls": {
+    "codex_auto_compact_token_limit": 6000,
+    "codex_tool_truncation_bytes": 30000,
+    "claude_window": 100000,
+    "claude_percentage": 5,
+    "claude_max_output_tokens": 1024,
+    "notes_lines": 1000,
+    "usage_estimate": "input_tokens = serialized inspected request characters // 4"
+  },
+  "success": true,
+  "automatic_compaction_qualified": true,
+  "qualification_limits": [
+    "Synthetic CLI execution and inspectable state lifecycle only; tool selection and model responses are scripted.",
+    "Token usage is estimated from real serialized inspected request size, not a model tokenizer or billing measurement.",
+    "Desktop behavior, live models, endpoint bypasses, deployment memory/capacity and production rollout remain unqualified."
+  ]
+}

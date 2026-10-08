@@ -8,9 +8,9 @@
 #     against software whose maintainers we have not contacted. The finding is
 #     published in FINDINGS.md §2 without the names; the names are held here.
 #
-# THIRD_PARTY_NOTICES.md stands on its own: no third-party code is copied into
-# this codebase, and every dependency is consumed as a package under its own
-# licence. Nothing in the public tree depends on this directory.
+# THIRD_PARTY_NOTICES.md stands on its own: dependencies are consumed as packages
+# and the public Codex wire grammar is attributed explicitly. Nothing in the
+# public tree depends on this directory.
 .research/
 
 # Python

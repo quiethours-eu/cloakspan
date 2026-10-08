@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from gateway.domain import RequestContext
-from gateway.transformations.tokens import TOKEN_PATTERN, TokenProvenance
+from gateway.transformations.tokens import TOKEN_PATTERN, TokenProvenance, canonicalize
 from gateway.vault.store import (
     CrossTenantAccessError,
     SurrogateVault,
@@ -135,13 +135,21 @@ class RestorationEngine:
                     outcome.refused_key_unavailable += 1
                     outcome.refused_tokens.append(token)
                 else:
-                    if value is None:
+                    minted = provenance.lookup(token)
+                    if (
+                        value is None
+                        or minted is None
+                        or canonicalize(value) != minted.canonical_value
+                    ):
                         outcome.refused_unknown += 1
                         outcome.refused_tokens.append(token)
                     else:
-                        replacement = value
+                        # A concurrent request can refresh this canonical token
+                        # with another spelling. Vault authentication/TTL still
+                        # gate restoration; the current request owns its bytes.
+                        replacement = minted.original_value
                         outcome.restored += 1
-                        projected_bytes += len(value.encode("utf-8")) - len(token)
+                        projected_bytes += len(replacement.encode("utf-8")) - len(token)
 
             fragments.extend((text[match.end() : cursor], replacement))
             cursor = match.start()

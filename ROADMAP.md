@@ -42,9 +42,31 @@ detection and performance evidence.
 
 - Hosted/multitenant service with PostgreSQL RLS, per-tenant KMS, HA, billing,
   and a control plane.
-- Anthropic-native compatibility.
-- Streaming, tools/functions, structured output, and multimodal inspection.
+- Qualified Anthropic-native and coding-agent client support.
+- Chat Completions streaming/tools, broader structured output and multimodal inspection.
 - Persistent vaults, Kubernetes/Helm, SSO/SCIM, dashboards, and SIEM exports.
 
-Architecture documents may explore these areas, but they are not implemented
-features and do not belong to the v0.1 release milestone.
+These programs do not belong to the v0.1 release milestone.
+
+## Separate opt-in milestone: coding agents
+
+The [Codex/Claude Code plan](docs/codex-claude-code-implementation-plan.md) has an
+experimental inspectable Responses and native Messages implementation with
+registered tools, SSE, scoped history replay and resource controls. Capabilities
+default off. This is separate from v0.1. Both pinned restricted CLI profiles have
+completed the full local synthetic workflow; live/desktop qualification remains
+separate.
+
+Implement the public profiles in the [versioned support matrix](docs/agent-compatibility.md)
+for Codex CLI 0.161.0 and Claude Code CLI 2.1.293, without requiring private
+configuration captures. Both pinned CLIs passed read/edit/test/follow-up,
+automatic inspectable compaction and resumed work against a synthetic provider;
+qualify desktop/model/OS/optional bridge separately for deployment. Both required
+clients must read/edit/test,
+follow up, automatically compact and resume safely in the actual deployment.
+Inspectable custom-provider local summaries use ordinary requests. Opaque state,
+opaque compaction endpoints, provider storage and WebSockets remain
+disabled until reviewed security/retention contracts exist; no invariant is
+waived. Synthetic fixtures/preflight/benchmark are implementation evidence only.
+Reference latency/capacity measurements, independent review and pilot approval
+remain outstanding before wider opt-in rollout.

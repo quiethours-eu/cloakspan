@@ -142,7 +142,7 @@ HTTP 400 with `streaming_unsupported`
 integrator can tell "you sent something we do not recognise" from "we recognise
 this and deliberately refuse it".
 
-Responses are deliberately **not** schema-validated. The asymmetry is argued in
+Chat Completions provider responses are deliberately **not** schema-validated. The asymmetry is argued in
 [docs/openai-compatibility.md](openai-compatibility.md#why-responses-are-not-schema-validated):
 requests are attacker-controlled, responses come from a destination the operator
 chose, and the response-side boundary is the restoration allowlist rather than
@@ -403,10 +403,10 @@ value), `::test_audit_event_has_no_extensible_field` (structural).
 of every exception the pipeline can raise for the value that caused it, which is
 exactly where a well-meaning `f"failed on {text}"` would land.
 
-The container log scan is now a job rather than an anecdote
-(`make test-container`), but **it has never executed**: the Docker registry was
-unreachable in our environment, so it skips with an explicit reason. It must run
-once before the container claim counts as evidence.
+The container log scan (`make test-container`) passed on the pinned-base
+implementation image on 2026-10-08; see
+[implementation evidence](agent-compatibility.md#implementation-verification-2026-10-08).
+Signing, build provenance and required CI release checks remain pending.
 
 Still open: OpenTelemetry tracing is not implemented and must be built
 redaction-first; there is no metrics surface yet. Both belong under this
@@ -685,10 +685,9 @@ written, dated waiver with a named owner.
 Nothing is at ❌ any more. The three at 🔶 are all "enforced, with a named gap",
 not "unenforced":
 
-- **SI-11** — audit and error paths are covered; the container log scan is a
-  runnable job that **has never executed** here (the Docker registry was
-  unreachable). Tracing and metrics are not implemented and must be built
-  redaction-first.
+- **SI-11** — audit and error paths are covered; the container log scan passed
+  on the development image, while the exact release artifact remains unqualified.
+  Tracing and metrics are not implemented and must be built redaction-first.
 - **SI-13** — the success and policy-block paths are audited; the error paths
   still write no audit event.
 - **SI-16** — concurrency, cancellation, and retry are all enforced and tested;
@@ -701,3 +700,73 @@ the restoration design has not been reviewed by anyone who did not write it
 
 Executable coverage lives in the adversarial, property, egress, policy, and
 vault test suites.
+
+## Experimental agent evidence (2026-10-08)
+
+Responses and native Messages add separate opt-in enforcement; the frozen
+statements above are not waived or reinterpreted. Typed request parsers and
+`AgentPreparation` inspect every accepted content location and rebuild outbound
+payloads (SI-01/SI-02). Principal-scoped session hashes retain per-request
+`TokenProvenance` (SI-03/SI-04/SI-05). The registered tool sink boundary validates
+full batches before executable output (SI-03/SI-10/SI-17), while protocol SSE
+state machines validate final snapshots and terminal transitions. Agent detector
+processes have termination deadlines and agent outcomes include safe audit
+evidence; legacy Chat Completions gaps above remain scoped to that path.
+
+Arbitrary JSON numeric content in tool input, decoded arguments and schema
+literals/defaults/examples/enums/constants/bounds is inspected in expanded
+decimal form as structural content. Sensitive numbers fail before egress rather
+than being coerced or forwarded. Bounded sampling/count controls remain protocol
+controls. Evidence includes numeric contract and inspection regressions in
+`tests/test_agent_request_contract.py`.
+
+Executable declarations admit a bounded assertion subset, rejecting unsupported
+references/patterns/format/conditionals before egress. Emitted calls must match
+current declared names/native types, tool choice, parallelism and batch limits,
+then pass the declared schema after restoration. Evidence is in
+`tests/test_agent_tools.py` and the declaration/schema workflow regressions in
+`tests/test_agent_workflows.py`.
+
+Scope derivation uses SHA-256 over authenticated tenant, `ApiKey.key_id` and the
+validated session identity. `X-Session-Id`, `X-Conversation-Id`, public Codex
+`session-id`/`thread-id`, legacy `session_id` and native Claude `x-claude-code-session-id`
+aliases must agree; preserve `key_id` on credential rotation when
+retaining the principal. `DELETE /v1/agent/sessions/{id}` deletes only that
+principal's derived mappings. `tests/test_agent_runtime.py` covers isolation and
+session deletion. Its concurrent-canonical-values regression proves restoration
+requires an authentic scoped unexpired vault entry and canonical match, then
+uses the current provenance's original bytes. Its ambiguous-canonical-spellings
+regression rejects tool-bearing requests with competing originals before egress.
+Legacy Chat Completions behavior for variants within one request is unchanged.
+The legacy chat and conversation-deletion surfaces refuse the reserved `agent_`
+namespace, preventing authenticated legacy callers from bypassing this principal
+scope. Final implementation test/container counts and their limits are recorded
+in [the compatibility evidence](agent-compatibility.md#implementation-verification-2026-10-08).
+
+Typed public-client metadata is inspected and consumed locally, never forwarded
+as raw device/turn attribution. Responses cache identifiers are hashed with
+authenticated session and protocol/model/destination/policy scope. Validated
+native beta tags and effort/cache controls do not authorize opaque thinking,
+continuation or unknown content. Cache hits never bypass inspection or acquire
+another request's provenance. The native Claude agent identity partitions a
+session's derived scope without inheriting restoration authorization.
+
+Stream executable batches wait for valid terminal state and clean SSE EOF;
+snapshot text storage remains bounded separately from the incomplete token
+suffix withheld during delivery. Native stop sequences match the exact current
+sanitized request. Streaming regression tests cover those conditions without
+claiming actual client qualification.
+
+The decisions are [ADR-0018](adr/0018-agent-tool-restoration.md),
+[ADR-0019](adr/0019-agent-streaming.md) and
+[ADR-0020](adr/0020-inspectable-agent-sessions.md). Opaque reasoning, opaque compaction,
+provider-stored continuation and WebSockets remain disabled. Provider origin
+does not count as content inspection or current-request authorization. No dated
+invariant waiver has been granted by this implementation.
+
+Generated synthetic protocol fixtures and deterministic tests establish the
+implemented subset. Separate actual pinned CLI runs establish full synthetic
+coding, automatic-compaction and resume behavior, with native compaction evidence
+and inspected summary replay recorded in [the compatibility matrix](agent-compatibility.md).
+Neither evidence set replaces independent review or live/desktop deployment
+qualification.

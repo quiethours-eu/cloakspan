@@ -1,0 +1,34 @@
+# Public profile pinned to Codex CLI 0.161.0. See README.md for verification scope.
+model = "gpt-5.1"
+model_provider = "cloakspan"
+model_catalog_json = "REPLACE_WITH_ABSOLUTE_PATH/codex-models.example.json"
+model_reasoning_effort = "none"
+model_reasoning_summary = "none"
+web_search = "disabled"
+
+[model_providers.cloakspan]
+name = "Cloakspan"
+base_url = "http://127.0.0.1:8080/v1"
+env_key = "CLOAKSPAN_GATEWAY_KEY"
+wire_api = "responses"
+requires_openai_auth = false
+supports_websockets = false
+# Client-side generation retries could replay already executed tools.
+request_max_retries = 0
+stream_max_retries = 0
+stream_idle_timeout_ms = 120000
+
+[otel]
+exporter = "none"
+log_user_prompt = false
+
+[features]
+unified_exec = true
+multi_agent = false
+apps = false
+view_image = false
+goals = false
+default_mode_request_user_input = false
+
+[tools.experimental_request_user_input]
+enabled = false

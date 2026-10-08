@@ -1,0 +1,19 @@
+{
+  "fixture_version": 1,
+  "origin": "constructed synthetic contract; no client recording",
+  "protocols": ["responses-http", "messages-http"],
+  "anthropic_version": "2023-06-01",
+  "synthetic_canaries": {
+    "email": "agent-owner@example.test",
+    "blocked_credential": "AKIAIOSFODNN7EXAMPLE"
+  },
+  "workflow": ["read_file", "edit_file", "apply_patch", "shell:python -m pytest -q", "follow_up", "restored_history_replay"],
+  "release_qualification": {
+    "codex_version": null,
+    "claude_code_version": null,
+    "bridge_version": null,
+    "desktop_configuration": null,
+    "automatic_compaction": false,
+    "real_client_support": false
+  }
+}

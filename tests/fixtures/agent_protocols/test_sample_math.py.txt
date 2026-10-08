@@ -1,0 +1,6 @@
+from sample_math import CONTACT, add
+
+
+def test_addition_and_private_source():
+    assert add(2, 3) == 5
+    assert CONTACT == "agent-owner@example.test"

@@ -288,7 +288,7 @@ scope. Vault scope alone would still permit replay within one conversation.
 |---|---|
 | **L / I** | M / H |
 | **Mitigation** | Minimal core dependency set (6 packages); NER and routing are optional extras; multi-stage image with no build toolchain at runtime; source SBOM and an SPDX-aware licence policy enforced in the test suite; pip-audit, Trivy and Gitleaks blocking in CI; vulnerability exceptions dated, owned, and expiring; licence-boundary test blocking proprietary `litellm-enterprise` |
-| **Residual** | **Medium.** The tooling exists and **has not been executed against a real build** — the registry was unreachable here, so the container SBOM, image signature, build provenance, and image scan are all wired and unrun. The base image is still referenced by a mutable tag. R-01 |
+| **Residual** | **Medium.** Source and container SBOMs, dependency/secret scans, and the vulnerability scan passed for the pinned-base implementation image on 2026-10-08. Image signing, build provenance and required CI release checks remain pending; these scans do not establish release qualification. See the [implementation evidence](agent-compatibility.md#implementation-verification-2026-10-08). R-01 |
 | **Test** | `tests/test_supply_chain.py` (26), `tests/test_licence_boundary.py` (9) |
 
 ### T14. API-key theft
@@ -369,16 +369,16 @@ during the Phase 0 contract freeze and are new.
    addressed.~~ **Closed by Phase 4.** Adversarial recall is now 100% on the
    documented techniques. The residual is multi-character confusables, which are
    out of scope by decision rather than by omission.
-2. **T5** — tool calls and structured output are **refused, not inspected**.
-   Closed as a leak; open as a capability.
+2. **T5** — Chat Completions tools/structured output remain refused. Experimental
+   native agent adapters inspect registered tools; arbitrary formats remain refused.
 3. ~~**T6** — no egress allowlist.~~ **Closed by Phase 5.** Residual is fast DNS
    rebinding, which needs a pinned transport.
-4. **T9** — the ReDoS screen is a heuristic, and detector timeouts are not
-   implemented: a hanging detector blocks until the client disconnects.
-5. **T13** — supply-chain tooling is built but **unexecuted**: source SBOM and
-   licence policy run and pass, but the container SBOM, image signature, build
-   provenance, and image scan have never run, and the base image is not pinned
-   to a digest. One machine with registry access closes all of it.
+4. **T9** — the ReDoS screen is a heuristic. Chat Completions detector execution
+   has no hard timeout; experimental agent inspection runs in a terminated-on-timeout process.
+5. **T13** — source/container SBOMs, licence policy, dependency/secret scans and
+   the pinned-base image vulnerability scan have run and passed. Image signing,
+   build provenance and required CI release checks remain pending; passing
+   scanners alone does not close supply-chain risk.
 6. **T16** — output findings do not yet drive policy actions. A model that
    invents a plausible personal code is not blocked.
 7. ~~**Uninspected pass-through.**~~ **Closed by Phase 5.** Unknown roles and
@@ -389,13 +389,14 @@ during the Phase 0 contract freeze and are new.
    failing to restore.
 9. ~~**Retry and concurrency behaviour is untested.**~~ **Closed by Phases 3 and
    5.** Concurrency, cancellation, and retry are enforced and tested.
-10. **Error paths write no audit event (new).** A request refused for
+10. **Chat Completions error paths write no audit event (new).** A request refused for
     un-inspectable content or a provider failure leaves no record an operator
     can query. [SI-13](security-invariants.md#si-13--security-critical-actions-produce-audit-evidence);
     Phase 6.
-11. **Container hardening is unverified (new).** The tests exist and have never
-    run — the Docker registry was unreachable in our environment. They must run
-    once before the container claims count as evidence.
+11. **Release artifact assurance remains unqualified.** The existing and
+    agent suites passed on the pinned-base implementation image on 2026-10-08
+    ([evidence](agent-compatibility.md#implementation-verification-2026-10-08));
+    signing, build provenance and required CI release checks remain pending.
 
 None of these is hidden by a passing test. Each remains an explicit limitation
 until the corresponding mitigation has evidence.
@@ -414,7 +415,7 @@ Stated so the coverage claim is checkable rather than assumed:
 | T6 SSRF | SI-14 |
 | T7 Credential leakage | SI-12 |
 | T8 Raw content in logs | SI-11 |
-| T9 DoS | SI-02 (size limit), SI-10 (timeouts — **not implemented**) |
+| T9 DoS | SI-02 (size limit), SI-10 (agent detector/resource deadlines; Chat Completions timeout gap remains) |
 | T10 Detector outage | SI-10 |
 | T11 Control-plane outage | SI-15 |
 | T12 Stale mappings | SI-03 (TTL is a supporting control, not the primary one) |
@@ -422,7 +423,7 @@ Stated so the coverage claim is checkable rather than assumed:
 | T14 API-key theft | **none** — no rotation or expiry workflow exists |
 | T15 Unsafe policy update | SI-13 (policy version in every audit event) |
 | T16 Model-generated data | **none** — output findings do not drive policy |
-| T17 Streaming leakage | SI-02 (refused) |
+| T17 Streaming leakage | SI-02 (Chat Completions refused; agent state machines/limits), SI-03, SI-17 |
 | T18 Equality disclosure | **none** — accepted residual, ADR-0016 |
 | T19 Undetected personal data | **none**. Detection quality is not an invariant; `SAG_LOCAL_ROUTING=all` removes the dependency (ADR-0017) |
 
@@ -431,3 +432,49 @@ by build process rather than runtime behaviour, T18 is an accepted residual
 (ADR-0016), T19 is a limit of detection that no request-path invariant can
 promise away, and T14 and T16 are **genuine gaps** that need either an invariant
 or a written acceptance before Community Edition beta.
+
+## Experimental coding-agent boundary (2026-10-08)
+
+Agent Responses/Messages treat the provider as controlling executable arguments,
+event order and final snapshots. A current-request token placed into a shell
+upload, network destination, unregistered field or tool must not gain the
+authorization of a local file read. Registered sink rules, grammar revalidation,
+workspace containment and whole-batch release defend this additional T5 path;
+clients retain approval, sandbox and execution-time symlink responsibilities.
+[ADR-0018](adr/0018-agent-tool-restoration.md) records that decision.
+
+Current-request declared names/native types, tool-choice/parallel/batch controls
+and restored executable schemas are additional authorization boundaries. Refuse
+unsupported executable assertions before egress. Arbitrary sensitive JSON
+numbers fail inspection without coercion. Distinct canonical-equivalent
+originals in tool-bearing requests are refused to avoid ambiguous exact edits;
+across concurrent requests, authenticated unexpired canonical vault matching
+still selects only the original in the current provenance.
+
+Partial tokens, malformed streams and arguments arriving before completion are
+T17 paths. Bounded UTF-8/SSE state machines and incremental token restoration
+withhold executable batches until validation; they do not provide semantic
+output DLP. [ADR-0019](adr/0019-agent-streaming.md) records the stream boundary.
+
+Guessed session IDs, parallel request replay and external opaque state replay are
+T1/T2/T12 paths. Bind sessions to authenticated tenant/principal, reinspect replay
+and keep request provenance fresh. Opaque reasoning/compaction/provider state
+remain disabled without an independent continuation decision. No invariant is
+waived ([ADR-0020](adr/0020-inspectable-agent-sessions.md)).
+The principal is `ApiKey.key_id`; stable tenant/session strings alone do not
+preserve scope after principal rotation. Validated session header aliases must
+agree. Agent deletion acts only on the authenticated principal's derived scope.
+Typed client device/turn metadata is inspected then consumed locally. Cache
+identifiers exported to the provider are scoped hashes; cache hits do not skip
+inspection or grant restoration authority. Native Claude agent identities
+partition subagent scopes. Known beta tags and effort controls do not authorize
+opaque thinking or expand the content/limit contract.
+
+Only configured inference traffic crosses this control. Client telemetry,
+downloads/web requests, independent MCP servers and executed tools may use other
+routes, and a local Messages-to-Responses bridge sees original content. Put a
+selected bridge inside the trusted boundary, disable prompt logs, and enforce
+deployment egress separately. Generated protocol fixtures do not establish
+actual client behavior. Separate pinned CLI runs pass full synthetic coding,
+automatic compaction and resume; desktop/live deployment and endpoint-bypass
+qualification remain open gates.

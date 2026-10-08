@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import replace
 
+from gateway.config import Settings
+from gateway.diagnostics.agent_checks import agent_checks
 from gateway.diagnostics.checks import inspect_offline
 from gateway.diagnostics.models import CheckResult, DoctorReport
 from gateway.diagnostics.probes import load_model, probe_providers
@@ -19,6 +21,7 @@ def run_doctor(
 ) -> DoctorReport:
     offline = inspect_offline(env)
     checks = list(offline.report.checks)
+    checks.extend(agent_checks(Settings.from_mapping(env, for_diagnostics=True)))
     coverage = list(offline.report.coverage)
     if load_ner_model:
         ner_index = next(index for index, check in enumerate(checks) if check.id == "detection.ner")

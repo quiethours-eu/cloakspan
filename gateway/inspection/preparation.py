@@ -41,19 +41,12 @@ class PreparedRequest:
     transformed_count: int
 
 
-class PreparationService:
-    def __init__(
-        self,
-        detectors: list[Any],
-        policy: PolicyEngine,
-        transformer: TransformationEngine,
-        max_input_chars: int = 256_000,
-        block_mixed_script: bool = False,
-    ) -> None:
+class TextInspectionService:
+    """Normalization and detection reusable without holding vault secrets."""
+
+    def __init__(self, detectors: list[Any], block_mixed_script: bool = False) -> None:
+        self.detectors = detectors
         self._detectors = detectors
-        self._policy = policy
-        self._transformer = transformer
-        self._max_input_chars = max_input_chars
         self._block_mixed_script = block_mixed_script
 
     def _detect(self, view: DetectionView) -> list[Span]:
@@ -96,6 +89,29 @@ class PreparationService:
                 )
             )
         return resolve_conflicts(mapped)
+
+    def inspect_text(self, content: str) -> tuple[list[Span], dict[str, int]]:
+        """Inspect one typed location using the same normalization as chat."""
+        screening = screen_text(content, block_mixed_script=self._block_mixed_script)
+        screening.raise_if_blocking()
+        view = build_detection_view(content)
+        spans = self._map_to_original(view, resolve_conflicts(self._detect(view)))
+        return spans, dict(screening.signals)
+
+
+class PreparationService(TextInspectionService):
+    def __init__(
+        self,
+        detectors: list[Any],
+        policy: PolicyEngine,
+        transformer: TransformationEngine,
+        max_input_chars: int = 256_000,
+        block_mixed_script: bool = False,
+    ) -> None:
+        super().__init__(detectors, block_mixed_script)
+        self._policy = policy
+        self._transformer = transformer
+        self._max_input_chars = max_input_chars
 
     def inspect_payload(
         self, payload: dict[str, Any]

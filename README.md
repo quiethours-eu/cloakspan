@@ -141,6 +141,13 @@ model and provider checks, and Compose commands.
 
 ## Connect a client
 
+**Using Codex or Claude Code CLI?** Follow the
+[simple connection guide](docs/connect-coding-clients.md) for gateway-key setup
+and commands for both pinned clients. The opt-in Responses and native Messages
+profiles passed synthetic coding, automatic inspectable compaction and resume.
+See the [coding agent contract](docs/agent-compatibility.md) for live/desktop
+qualification limits; opaque continuation remains disabled.
+
 The gateway implements a strict subset of `POST /v1/chat/completions`. Existing
 OpenAI clients can point their base URL at it, provided they stay inside the
 [compatibility contract](docs/openai-compatibility.md).
@@ -311,7 +318,7 @@ coverage. Contributions for additional countries and languages are welcome.
 
 ## Security choices
 
-- Request fields are allowlisted. Unsupported roles, tools, structured output,
+- Chat Completions request fields are allowlisted. Unsupported roles, tools, structured output,
   `stop`, `user`, streaming, and multimodal content are refused rather than
   forwarded without inspection.
 - Request bodies are capped while streaming, before JSON parsing. Inspected text
@@ -319,8 +326,10 @@ coverage. Contributions for additional countries and languages are welcome.
 - Token tags use HMAC-SHA256 with a 128-bit tag. The local mapping vault uses
   AES-256-GCM and binds tenant, conversation, token, and key version as
   authenticated data.
-- Provider responses are buffered. Restoration writes only to
+- Chat Completions provider responses are buffered. Restoration writes only to
   `choices[].message.content` and only for tokens minted during that request.
+- Opt-in agent adapters inspect typed content, validate native SSE and restore
+  registered tool batches only after completion and full validation.
 - Audit events contain decisions, counts, timing, and refusal reasons. Their
   schema has no field for raw prompts.
 - Provider destinations are fixed at startup and revalidated off the event loop
@@ -338,12 +347,14 @@ The current build supports local evaluation and synthetic-data pilots:
 
 - PERSON, ORG, LOCATION, and ADDRESS detection needs an operator-supplied NER
   model. No model artifact ships in this repository.
-- Streaming, tool calls, structured output, multimodal input, and broad OpenAI
-  API compatibility are intentionally unsupported.
+- Default Chat Completions streaming, tool calls and structured output remain
+  unsupported. Opt-in agent adapters support the registered text/tool/SSE subset;
+  multimodal input, opaque continuation and broad API compatibility remain unsupported.
 - The default vault is process-local. Mappings disappear on restart and do not
   support a multi-node deployment.
-- Detector execution has no hard timeout, and custom regular expressions must
-  be treated as trusted configuration.
+- Chat Completions detector execution has no hard timeout. Native agent
+  inspection has an isolated-process deadline; custom regular expressions remain
+  trusted configuration.
 
 The full, current list is in [known limitations](docs/limitations.md). Report a
 vulnerability privately using [SECURITY.md](SECURITY.md); do not open a public

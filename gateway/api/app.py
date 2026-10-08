@@ -109,6 +109,7 @@ def create_app(
     pipeline: SecurityPipeline | None = None,
     key_store: ApiKeyStore | None = None,
     settings: Settings | None = None,
+    agent_providers: dict[str, dict[str, Any]] | None = None,
 ) -> FastAPI:
     resolved_settings = settings or Settings.from_env()
 
@@ -125,6 +126,8 @@ def create_app(
             # a handshake it does not need. Hand the sockets back here, inside
             # the graceful-shutdown window, rather than at interpreter exit.
             await app.state.pipeline.aclose_providers()
+            if hasattr(app.state, "agent_runtime"):
+                await app.state.agent_runtime.aclose()
 
     app = FastAPI(
         title="Cloakspan",
@@ -139,6 +142,23 @@ def create_app(
     app.state.key_store = key_store or build_key_store()
     app.state.settings = resolved_settings
     app.state.ready = True
+
+    if resolved_settings.enable_responses or resolved_settings.enable_messages:
+        from gateway.api.agent import register_session_deletion
+        from gateway.api.agent_runtime import AgentRuntime
+
+        app.state.agent_runtime = AgentRuntime(
+            app.state.pipeline, resolved_settings, agent_providers
+        )
+        register_session_deletion(app)
+        if resolved_settings.enable_responses:
+            from gateway.api.responses import register_responses
+
+            register_responses(app)
+        if resolved_settings.enable_messages:
+            from gateway.api.messages import register_messages
+
+            register_messages(app)
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
@@ -174,6 +194,14 @@ def create_app(
         if api_key is None:
             return error_response(
                 401, "Invalid API key.", "invalid_request_error", "invalid_api_key"
+            )
+
+        if x_conversation_id and x_conversation_id.startswith("agent_"):
+            return error_response(
+                403,
+                "Use the agent endpoint for an agent session.",
+                "invalid_request_error",
+                "reserved_conversation_scope",
             )
 
         if _declared_body_too_large(request, app.state.settings.max_request_bytes):
@@ -285,6 +313,13 @@ def create_app(
             )
         if not conversation_id:
             return error_response(400, "A conversation id is required.", "invalid_request_error")
+        if conversation_id.startswith("agent_"):
+            return error_response(
+                403,
+                "Use /v1/agent/sessions with the original client session ID.",
+                "invalid_request_error",
+                "reserved_conversation_scope",
+            )
 
         ctx = RequestContext(
             tenant_id=api_key.tenant_id,
@@ -305,17 +340,56 @@ def create_app(
         )
 
     @app.get("/v1/models")
-    async def models(authorization: str | None = Header(default=None)) -> JSONResponse:
+    async def models(
+        request: Request, authorization: str | None = Header(default=None)
+    ) -> JSONResponse:
         presented = (
             authorization[7:].strip()
             if authorization and authorization.lower().startswith("bearer ")
             else ""
         )
-        if app.state.key_store.authenticate(presented) is None:
+        if hasattr(app.state, "agent_runtime"):
+            from gateway.api.agent import authenticate
+
+            api_key = authenticate(
+                request, "messages" if resolved_settings.enable_messages else "responses"
+            )
+        else:
+            api_key = app.state.key_store.authenticate(presented)
+        if hasattr(app.state, "agent_runtime"):
+            if any(
+                len(request.headers.getlist(name)) > 1 for name in ("authorization", "x-api-key")
+            ):
+                api_key = None
+            audit_ctx = RequestContext(
+                api_key.tenant_id if api_key else "unauthenticated",
+                "agent-model-discovery",
+                "req_" + uuid.uuid4().hex,
+                api_key.key_id if api_key else "unknown",
+                api_key.application if api_key else "agent",
+            )
+            app.state.agent_runtime.audit(
+                audit_ctx,
+                error=None if api_key else "invalid_api_key",
+                operation="agent-model-discovery",
+            )
+        if api_key is None:
             return error_response(
                 401, "Invalid API key.", "invalid_request_error", "invalid_api_key"
             )
-        destinations = sorted(app.state.pipeline._providers)  # noqa: SLF001 - internal read for listing
+        if hasattr(app.state, "agent_runtime"):
+            names = {
+                name
+                for name in (
+                    resolved_settings.external_model if resolved_settings.enable_responses else "",
+                    resolved_settings.messages_model if resolved_settings.enable_messages else "",
+                    resolved_settings.local_model,
+                )
+                if name
+            } or {"mock-model"}
+            destinations = sorted(name for name in names if api_key.permits_model(name))
+        else:
+            destinations = sorted(app.state.pipeline._providers)  # noqa: SLF001
         return JSONResponse(
             content={
                 "object": "list",

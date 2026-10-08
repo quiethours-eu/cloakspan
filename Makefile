@@ -7,6 +7,7 @@ PY := $(VENV)/bin/python
 endif
 
 .DEFAULT_GOAL := help
+.PHONY: test-agents benchmark-agents
 .PHONY: help setup test test-container lint security demo up down clean fmt \
         evals evals-aliased evals-holdout evals-json corpus leakage \
         sbom licences lock pin-base-image image release-image benchmark \
@@ -16,6 +17,7 @@ help:
 	@echo "setup          Create the virtualenv and install dev dependencies"
 	@echo "demo           Run the offline demo (no credentials required)"
 	@echo "test           Run the full test suite (excludes container tests)"
+	@echo "test-agents    Run the experimental agent protocol and tool binding tests"
 	@echo "test-container Build the image and assert the hardening claims against it"
 	@echo "evals          Detection precision/recall per entity and language (dev split)"
 	@echo "evals-aliased  As above, merging LT/EE personal codes into one class"
@@ -56,7 +58,7 @@ test:
 # container: non-root uid, read-only root filesystem, dropped capabilities,
 # bounded memory, and zero canary occurrences in the full log stream.
 test-container:
-	$(PY) -m pytest tests/test_container_hardening.py -m container -q
+	$(PY) -m pytest tests/test_container_hardening.py tests/test_agent_container.py -m container -q
 
 # Exits non-zero while any entity/language pair is below its published
 # threshold. That is the release gate doing its job, not a broken target.
@@ -82,6 +84,12 @@ corpus:
 
 leakage:
 	$(PY) -m pytest evals/leakage -q
+
+test-agents:
+	$(PY) -m pytest tests/test_agent_*.py tests/test_bound_tools.py tests/test_public_*.py -q
+
+benchmark-agents: $(DIST)
+	$(PY) scripts/benchmark_agents.py --output $(DIST)/benchmark-agents.json
 
 lint:
 	$(PY) -m ruff check conftest.py gateway recognizers tests evals scripts

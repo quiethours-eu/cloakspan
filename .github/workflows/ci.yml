@@ -235,7 +235,7 @@ jobs:
       - name: container hardening tests
         env:
           SAG_TEST_IMAGE: secure-ai-gateway:ci
-        run: python -m pytest tests/test_container_hardening.py -m container -q
+        run: python -m pytest tests/test_container_hardening.py tests/test_agent_container.py -m container -q
 
       - name: prepare evidence directory
         run: mkdir -p dist
