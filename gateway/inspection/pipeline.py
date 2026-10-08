@@ -94,6 +94,14 @@ class SecurityPipeline:
     def audit(self) -> AuditSink:
         return self._audit
 
+    @property
+    def preparation(self) -> PreparationService:
+        return self._preparation
+
+    @property
+    def restorer(self) -> RestorationEngine:
+        return self._restorer
+
     async def aclose_providers(self) -> None:
         """Release provider connection pools on shutdown.
 

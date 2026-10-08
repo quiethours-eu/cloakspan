@@ -290,11 +290,13 @@ class TestEgressPolicy:
         with pytest.raises(EgressBlockedError, match="allowlist"):
             policy.validate("https://evil.example/v1")
 
-    def test_a_host_on_the_allowlist_is_permitted(self):
+    def test_a_host_on_the_allowlist_is_permitted(self, monkeypatch):
+        monkeypatch.setattr("gateway.routing.egress._resolve", lambda host: ["93.184.216.34"])
         policy = EgressPolicy(name="external", allowed_hosts=frozenset({"api.openai.com"}))
         policy.validate("https://api.openai.com/v1")
 
-    def test_the_allowlist_is_case_insensitive(self):
+    def test_the_allowlist_is_case_insensitive(self, monkeypatch):
+        monkeypatch.setattr("gateway.routing.egress._resolve", lambda host: ["93.184.216.34"])
         policy = EgressPolicy(name="external", allowed_hosts=frozenset({"api.openai.com"}))
         policy.validate("https://API.OpenAI.COM/v1")
 

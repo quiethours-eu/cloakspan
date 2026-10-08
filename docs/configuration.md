@@ -40,6 +40,38 @@ file.
 | `SAG_PORT` | `8080` | Uvicorn port. |
 | `SAG_LOG_LEVEL` | `INFO` | Application log level. |
 
+## Experimental coding agents
+
+See [the versioned agent contract](agent-compatibility.md) and
+[client configuration examples](../deployment/clients/README.md). Both capabilities
+are off by default; enabling an endpoint does not qualify a client version.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `SAG_ENABLE_RESPONSES` | `false` | Register native Responses and SSE routes. |
+| `SAG_ENABLE_MESSAGES` | `false` | Register native Messages, SSE and transformed token counting. |
+| `SAG_AGENT_WORKSPACE_ROOT` | none | Required absolute existing workspace; validate registered tool paths and symlinks. The execution client must repeat these checks. |
+| `SAG_MESSAGES_BASE_URL` | mock outside production | Native Messages `/v1` upstream for `external`; a Responses provider does not implement this route. |
+| `SAG_MESSAGES_API_KEY`, `SAG_MESSAGES_MODEL` | none / request model | Gateway-held native upstream credential and optional model override. |
+| `SAG_AGENT_MAX_CONCURRENT` | `4` | Per-process admission cap including body reads, isolated inspection and streams; 1–128. |
+| `SAG_AGENT_DETECTOR_TIMEOUT_SECONDS` | `15` | Kill isolated detector work at its wall deadline; 0–300 seconds, exclusive of zero. |
+| `SAG_AGENT_STREAM_IDLE_SECONDS` | `120` | Maximum upstream silence; increase explicitly for long thinking periods, up to 3600 seconds. |
+| `SAG_AGENT_STREAM_TOTAL_SECONDS` | `600` | Total stream deadline including downstream backpressure, up to 7200 seconds. |
+| `SAG_AGENT_MAX_EVENT_BYTES` | `1048576` | SSE frame byte cap, 1024–8388608. |
+| `SAG_AGENT_MAX_OUTPUT_BYTES` | `8388608` | Reconstructed output cap, 1024–67108864; native upstream transport also caps its wire response at 8 MiB. |
+
+Responses uses the existing external URL/credential/model fields. A selected local
+provider must implement each enabled native protocol; no external fallback occurs.
+The shared inspection/body limits apply to all protocol content locations.
+Agent body reads use `SAG_REQUEST_TIMEOUT_SECONDS`; native provider reads use the
+agent idle budget and completion work is bounded by the agent total budget.
+Custom detectors run in killable processes on these endpoints; the existing Chat
+Completions thread path retains its documented timeout limits.
+
+For containers, mount the synthetic/client workspace read-only at the same absolute
+path used by the client. The default Compose service deliberately grants no host
+workspace mount. Keep original repository content inside the trusted boundary.
+
 ## Unified custom filters
 
 Define identifiers, confidential phrases, or other business data in one YAML

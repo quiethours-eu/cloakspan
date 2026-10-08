@@ -53,6 +53,13 @@ class ApiKeyStore:
     def add(self, key: ApiKey) -> None:
         self._by_hash[key.key_hash] = key
 
+    def revoke(self, key_id: str) -> bool:
+        """Revoke a principal without touching upstream credentials or mappings."""
+        matches = [digest for digest, key in self._by_hash.items() if key.key_id == key_id]
+        for digest in matches:
+            del self._by_hash[digest]
+        return bool(matches)
+
     def authenticate(self, presented: str) -> ApiKey | None:
         """Look up a presented key in constant time with respect to the secret.
 

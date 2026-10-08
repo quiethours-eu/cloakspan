@@ -239,14 +239,124 @@ alert that cries wolf at each release is an alert that gets muted.
 
 Listed rather than discovered:
 
-- **Container hardening has never been verified on a real build here** — the
-  tests exist (`make test-container`) and the registry was unreachable in the
-  development environment. Run them before trusting the claims.
+- **Release artifact assurance remains outstanding.** The existing
+  and agent container suites passed on the pinned-base implementation image on
+  2026-10-08; see [implementation evidence](agent-compatibility.md#implementation-verification-2026-10-08).
+  Signing, build provenance and required CI release checks remain pending.
 - **Upgrade and rollback have never been rehearsed** from a previous release
   candidate, which is required before GA.
-- **Error paths write no audit event.** A 422 or a provider failure leaves no
+- **Chat Completions error paths write no audit event.** A 422 or a provider failure leaves no
   record you can query.
 - **No rate limiting.** Request size is capped; request *rate* is not.
-- **Detector timeouts are not implemented.** A pathological input can occupy a
+- **Chat Completions detector timeouts are not implemented.** A pathological input can occupy a
   worker until the client disconnects.
 - **No metrics endpoint.** Everything above is derived from the audit stream.
+
+## Experimental agent deployment
+
+Responses/Messages are a separate opt-in milestone. Start with a disposable
+synthetic workspace and the [client templates](../deployment/clients/README.md).
+The public profiles pin Codex CLI 0.161.0 and Claude Code CLI 2.1.293 in the
+[support matrix](agent-compatibility.md). Private versions/captures do not block
+their implementation; actual CLI evidence and production qualification are
+recorded separately. There is no recorded pilot approval.
+Upstream provider credentials remain at the gateway, while client gateway keys
+are independently revocable. Native Messages uses `SAG_MESSAGES_BASE_URL`,
+`SAG_MESSAGES_API_KEY` and `SAG_MESSAGES_MODEL`; Responses uses the external
+provider settings. Local routing requires the local endpoint to implement the
+chosen native protocol, with no fallback to an external provider.
+
+| Setting | Default / purpose |
+|---|---|
+| `SAG_ENABLE_RESPONSES`, `SAG_ENABLE_MESSAGES` | `false`; enable only the experimental adapter needed |
+| `SAG_AGENT_WORKSPACE_ROOT` | Required existing absolute directory for agent tools |
+| `SAG_AGENT_MAX_CONCURRENT` | `4`; bound admitted native agent work |
+| `SAG_AGENT_DETECTOR_TIMEOUT_SECONDS` | `15`; terminate isolated detector work when the wall-clock limit expires |
+| `SAG_AGENT_STREAM_IDLE_SECONDS` | `120`; maximum wait for upstream stream progress |
+| `SAG_AGENT_STREAM_TOTAL_SECONDS` | `600`; maximum total generation duration |
+| `SAG_AGENT_MAX_EVENT_BYTES` | `1048576`; maximum upstream SSE frame size |
+| `SAG_AGENT_MAX_OUTPUT_BYTES` | `8388608`; maximum restored output size |
+
+Existing input/body caps also apply. Detector isolation, request rejection,
+stream failure, restoration refusal and cancellation produce safe agent audit
+outcomes. Do not add prompts, mappings, raw private paths or tool arguments to
+logs/metrics. A stalled detector is terminated on the native paths; this does
+not change the legacy Chat Completions timeout/audit gaps above.
+
+Use stable session identities (`X-Session-Id`, `X-Conversation-Id`, public Codex
+`session-id`/`thread-id`, legacy `session_id` or native Claude `x-claude-code-session-id`) and
+replay original/restored history. Supplied aliases must
+agree. The gateway binds a SHA-256 conversation scope to tenant and
+`ApiKey.key_id` principal; a raw client session ID is not authorization. Preserve
+the key record's `key_id` on credential rotation to retain that principal, and
+keep token/vault keys stable across rollout. `DELETE /v1/agent/sessions/{id}`
+removes mappings only in the authenticated tenant/principal's derived namespace.
+The native Claude agent identity partitions subagent scope. Typed client device
+and turn metadata is inspected then consumed locally; prompt cache identifiers
+are hashed with authenticated session/routing/policy scope before provider egress.
+Caches never skip inspection or reuse another request's restoration provenance.
+Legacy Chat Completions and its deletion endpoint refuse IDs beginning `agent_`;
+use the agent session API for these mappings.
+Vault mappings are still ephemeral;
+full inspectable replay can recreate them after restart, while missing history
+causes executable restoration refusal. Opaque reasoning/compaction,
+provider storage and WebSockets remain disabled without an approved contract.
+The public custom-provider Codex profile uses inspectable local text compaction
+through ordinary requests. Qualify its automatic trigger/resume workflow without
+enabling the opaque compact endpoint. The client examples explicitly raise the
+inspected-character cap to one million and bound bodies at 4 MiB for public
+CLI tools and long replay; measure detector time and memory before production.
+
+Tool declarations and batches obey the bounded executable-schema, tool-choice,
+type/name, parallelism and maximum-call contract; an unsupported schema fails
+before provider egress. Sensitive numeric JSON content and ambiguous canonical
+originals in a tool-bearing request also fail before egress. Concurrent requests
+restore their own provenance originals after authentic vault/canonical checks,
+so one request's spelling cannot overwrite another request's executable edit.
+
+Preflight makes network requests only with `--network`; see the examples for
+model/workspace/key configuration. It checks authentication, selected model,
+native stream completion and a verified harmless local read/result round trip.
+Its pass does not qualify a real client, edit/test workflow, compaction or resume.
+Run `scripts/benchmark_agents.py` with the same synthetic tasks by size/profile:
+
+```sh
+python scripts/benchmark_agents.py --protocol both --profiles deterministic dictionary \
+  --sizes 4096 16384 --iterations 20 --output dist/agent-benchmark.json
+```
+
+The default benchmark compares direct synthetic provider and gateway runtime
+paths without HTTP/TLS/network or a real client/model. It reports inspection,
+first text, withheld tool release, total time, estimated usage, failures and
+parent Python allocation peak. Cache metrics remain null without cache evidence;
+child/native/model RSS and real tokenizer counts must be measured separately.
+This is a regression signal on the recorded machine, not published capacity.
+
+**Proposed reference pilot budgets, not measured acceptance:** a single Linux
+node with 2 vCPU / 4 GiB RAM, deterministic profile, 4 concurrent sessions;
+gateway-added p95 time to first text <=250 ms at 4 KiB and <=750 ms at 16 KiB;
+gateway-added post-terminal tool release p95 <=100 ms; total synthetic task
+overhead <=10% or 1 second, whichever is larger; zero unsafe tool releases or
+detectable-canary leaks and <=1% unexpected failures. Measure optional NER and
+larger prompts separately before setting their budgets. Record exact hardware,
+image, profile, provider/model, client versions, warm-up/cache behavior, token
+changes and complete deployment RSS. The current synthetic script cannot certify
+these deployment budgets.
+
+Qualify detector process start methods inside the actual ASGI/container host,
+including threaded fork safety, NER startup/serialization and cancellation.
+Measure complete parent/child/native RSS under the selected cgroup CPU/memory
+limits and at concurrency capacity. A parent `tracemalloc` number or per-process
+address-space limit is not evidence of whole-container capacity.
+
+The pinned CLI profiles pass full synthetic read/edit/test/follow-up, automatic
+compaction and resumed work. Reproduce that evidence with
+`scripts/public_client_check.py --mode gateway --workflow --compact`, explicitly
+supplying installed pinned binaries. The support matrix records lowered test
+thresholds and estimated usage; qualify live/desktop deployments separately.
+Trace telemetry, MCP,
+downloads and executed commands for endpoint bypasses and enforce deployment
+egress separately. Roll back on canary leaks, unsafe/duplicate tool execution,
+failed compaction/resume or resource-budget breaches: disable the affected flags
+or restore the tested gateway, preserve compatible keys, and recover through
+inspectable history. Never redirect clients around the gateway.

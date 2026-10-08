@@ -3,8 +3,9 @@
 **Status:** alpha · enforces [SI-01](security-invariants.md#si-01--no-uninspected-egress)
 and [SI-02](security-invariants.md#si-02--reject-unknown-content)
 
-This document is the complete list of what the gateway accepts, rejects, and
-ignores. It exists because "OpenAI-compatible" is not a specification — every
+This document lists the default Chat Completions contract. The separate opt-in
+agent adapters are documented below and in [agent compatibility](agent-compatibility.md).
+It exists because "OpenAI-compatible" is not a specification — every
 proxy in this category means something slightly different by it, and the
 difference is exactly where uninspected content gets through.
 
@@ -27,16 +28,72 @@ third category of "passed through because nobody thought about it".
 
 | Endpoint | v1 | Notes |
 |---|---|---|
-| `POST /v1/chat/completions` | **Accepted** | The only inspected request path |
-| `GET /v1/models` | **Accepted** | Lists configured *destinations*, not upstream models. Requires auth |
+| `POST /v1/chat/completions` | **Accepted** | Existing strict text contract, unchanged |
+| `GET /v1/models` | **Accepted** | Requires auth; lists configured destinations by default and explicitly configured permitted model IDs when agent capabilities are enabled; never upstream discovery |
 | `DELETE /v1/conversations/{id}` | **Accepted** | Not an OpenAI endpoint. Erases every surrogate mapping for the conversation, scoped to the authenticated tenant by construction, so one tenant cannot delete another's records by guessing an id. Required for an erasure request to be answerable in seconds rather than one TTL. Returns `records_removed`; idempotent. See [ADR-0013](adr/0013-vault-lifetime-deletion-and-restart.md) |
 | `GET /healthz` | **Accepted** | Liveness. No auth, no downstream calls |
 | `GET /readyz` | **Accepted** | Readiness. Never checks an external provider ([SI-15](security-invariants.md#si-15--no-control-plane-dependency-on-the-request-path)) |
 | `POST /v1/completions` | **Rejected** | 404. Legacy endpoint; no inspection path written for it |
 | `POST /v1/embeddings` | **Rejected** | 404. Planned; input arrays need their own inspection contract |
-| `POST /v1/responses` | **Rejected** | 404. Plan Phase 3 |
+| `POST /v1/responses` | **Opt-in** | Disabled unless `SAG_ENABLE_RESPONSES`; strict experimental native adapter |
+| `POST /v1/messages`, `/v1/messages/count_tokens` | **Opt-in** | Disabled unless `SAG_ENABLE_MESSAGES`; strict experimental native Messages adapter; transformed token-count request |
+| `DELETE /v1/agent/sessions/{id}` | **Opt-in** | Deletes agent mappings under authenticated tenant/principal-derived session scope; validated identity, idempotent |
+| `POST /v1/responses/compact`, response retrieval, WebSockets | **Rejected** | No inspected state contract; disabled |
 | `POST /v1/moderations`, `/v1/files`, `/v1/assistants`, everything else | **Rejected** | 404 |
 | `/docs`, `/redoc`, `/openapi.json` | **Disabled** | Unnecessary surface on a security appliance ([app.py](../gateway/api/app.py)) |
+
+---
+
+## Separate experimental agent contract
+
+Responses and Messages rebuild outbound payloads from their native validated
+models. Typed content locations cover instructions/system/developer text,
+supported message blocks, tool descriptions/schema content, JSON argument values,
+tool results and replayed history. Structural names/IDs/routing fields are
+constrained, inspected and refused if they cannot be safely transformed; arbitrary
+metadata, images, remote files and opaque blocks have no pass-through path.
+Arbitrary JSON content numbers are inspected as decimal structural locations;
+sensitive numeric detections fail without type coercion. Executable tool
+declarations use bounded supported assertions and registered typed formats;
+unsupported references/patterns/format/conditionals fail before egress. Emitted
+tools must match current declarations and choices, parallelism and batch limits,
+then satisfy the declared schema after restoration.
+Native Messages supports the explicitly implemented version/beta headers and
+ephemeral cache controls; caching never skips inspection or reuses provenance.
+Pinned client attribution is accepted only in typed, inspected metadata fields
+and consumed locally. Responses cache identities are hashed with authenticated
+scope and routing/policy controls before egress. An encrypted-content selector
+does not authorize nonempty encrypted output or replay; only an empty reasoning
+placeholder is accepted.
+
+Unlike the legacy prose response path, agent responses and SSE event transitions
+are validated, including final snapshots and terminal states. Complete registered
+tool batches are restored and checked before any executable output is emitted.
+The adapters support only the experimental function/tool registry and inspectable
+history with principal-scoped session identity. Unknown request content, duplicate
+JSON keys, non-finite numbers, ambiguous shapes, invalid encodings and limit
+violations fail closed. There is no unrestricted proxy fallback.
+Legacy Chat Completions and its conversation deletion refuse the reserved
+`agent_` namespace, preventing bypass of the principal-scoped agent APIs.
+Session aliases `X-Session-Id`, `X-Conversation-Id`, public Codex `session-id`/`thread-id`,
+legacy `session_id` and native Claude `x-claude-code-session-id` must
+agree and map to a tenant/`ApiKey.key_id` SHA-256 scope. The native Claude agent
+identity further partitions that scope; preserve key_id during
+credential rotation to retain the principal. Concurrent vault refreshes cannot
+replace request-provenance originals after authenticated canonical matching;
+tool-bearing requests reject ambiguous canonical variants before egress.
+
+`store: true`, `previous_response_id`, encrypted/signed reasoning, opaque state,
+compaction endpoints and WebSockets are disabled. Gateway bearer authentication
+is separate from provider credentials; OAuth/subscription forwarding is not
+implemented. [The matrix](agent-compatibility.md) records both pinned CLIs'
+complete coding/automatic-compaction/resume passes against a synthetic provider,
+with live/desktop deployment and release qualification kept separate.
+
+See [tool restoration](adr/0018-agent-tool-restoration.md),
+[streaming](adr/0019-agent-streaming.md) and
+[session replay](adr/0020-inspectable-agent-sessions.md) for the security decisions.
+The field tables below continue to describe **Chat Completions only**.
 
 ---
 

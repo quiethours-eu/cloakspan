@@ -1,0 +1,6 @@
+# Owner: agent-owner@example.test
+CONTACT = "agent-owner@example.test"
+
+
+def add(left, right):
+    return left - right
