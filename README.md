@@ -17,11 +17,11 @@ the model's reply.
 **[Try it locally](#try-it-locally)** ·
 [Watch the terminal demo](#try-the-offline-demo) ·
 [Connect your app](#connect-a-client) ·
-[Releases](https://github.com/quiethours-eu/cloakspan/releases)
+[Changelog](CHANGELOG.md)
 
 [![CI](https://github.com/quiethours-eu/cloakspan/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/quiethours-eu/cloakspan/actions/workflows/ci.yml)
 [![Status: alpha](https://img.shields.io/badge/status-alpha-f59e0b)](#current-limits)
-[![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)](pyproject.toml)
+[![Python 3.12 | 3.13 | 3.14](https://img.shields.io/badge/python-3.12%20%7C%203.13%20%7C%203.14-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2ea44f)](LICENSE)
 
 ![Cloakspan illustrated offline demo: tokenize and restore](docs/assets/cloakspan-demo.gif)
@@ -61,7 +61,7 @@ py -3 -m venv .venv
 
 Open **http://127.0.0.1:8765** and enter the session access code printed in the
 terminal. Choose the **Email address** sample, then **Inspect locally**. The result
-shows `TRANSFORM`: the original address is highlighted, and the projected
+shows **Transform**: the original address is highlighted, and the projected
 request contains an `EMAIL_ADDRESS` token instead of the address. Try the
 credential sample to see a blocked request. Press **Ctrl+C** in the terminal
 to stop the playground.
@@ -137,20 +137,20 @@ personal code. It prints exactly what each provider received.
 
 Run `.venv/bin/cloakspan doctor` on macOS/Linux, or
 `.\.venv\Scripts\cloakspan.exe doctor` on Windows, to inspect gateway settings
-without starting the gateway. Provider and secret warnings are expected for
-the provider-free playground; configure them when you connect an app.
+without starting the gateway. On a fresh install it reports missing API keys,
+secrets, and provider URLs. That is expected for the provider-free playground;
+set them in `.env` when you connect an app.
 
 See the [setup doctor guide](docs/setup-doctor.md) for JSON output, optional
 model and provider checks, and Compose commands.
 
 ## Connect a client
 
-**Using Codex or Claude Code CLI?** Follow the
-[simple connection guide](docs/connect-coding-clients.md) for gateway-key setup
-and commands for both pinned clients. The opt-in Responses and native Messages
-profiles passed synthetic coding, automatic inspectable compaction and resume.
-See the [coding agent contract](docs/agent-compatibility.md) for live/desktop
-qualification limits; opaque continuation remains disabled.
+**Using Codex CLI or Claude Code?** Both can run through Cloakspan on macOS and
+Linux with opt-in gateway profiles. The
+[connection guide](docs/connect-coding-clients.md) has the setup commands, and
+the [coding agent contract](docs/agent-compatibility.md) lists the client
+versions tested and what is not supported yet.
 
 The gateway implements a strict subset of `POST /v1/chat/completions`. Existing
 OpenAI clients can point their base URL at it, provided they stay inside the
@@ -378,6 +378,8 @@ provide the `cloakspan` command. See the [brand assets](docs/brand.md).
 | Review the security model | [Threat model](docs/threat-model.md), [invariants](docs/security-invariants.md), and [data flow](docs/data-flow.md) |
 | Inspect detection evidence | [Evaluation report](docs/evaluation-report.md) and [entity taxonomy](docs/entity-taxonomy.md) |
 | Contribute | [Contributing guide](CONTRIBUTING.md) and [roadmap](ROADMAP.md) |
+| Get help | [Support](SUPPORT.md), [issues](https://github.com/quiethours-eu/cloakspan/issues), and [discussions](https://github.com/quiethours-eu/cloakspan/discussions) |
+| See what changed | [Changelog](CHANGELOG.md) |
 
 ## Local checks
 
