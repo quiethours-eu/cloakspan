@@ -6,6 +6,7 @@ import json
 import re
 import shlex
 import subprocess
+import sys
 
 import pytest
 
@@ -13,6 +14,11 @@ from gateway.domain import RequestContext
 from gateway.restoration.engine import RestorationEngine
 from gateway.tools import ToolRegistry, ToolRestorationError
 from gateway.transformations.tokens import TokenProvenance
+
+posix_only = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="agent tool workspaces are POSIX-only (see docs/connect-coding-clients.md)",
+)
 
 
 @pytest.fixture
@@ -195,6 +201,7 @@ def test_path_sink_rejects_escape_and_network_values(registry, ctx, minter, vaul
         _restore(registry, ctx, vault, "read_file", {"path": token}, provenance)
 
 
+@posix_only
 def test_symlink_escape_is_checked_without_executing_tool(registry, ctx, vault, tmp_path):
     (tmp_path / "escape").symlink_to(tmp_path.parent, target_is_directory=True)
     with pytest.raises(ToolRestorationError):
@@ -256,6 +263,7 @@ def test_shell_restores_literal_local_paths(registry, ctx, minter, vault, progra
     assert outcome.restored == 1
 
 
+@posix_only
 def test_posix_shell_executes_restored_metacharacters_as_one_literal_path(
     registry, ctx, minter, vault, tmp_path
 ):
@@ -362,6 +370,7 @@ def test_public_exec_permission_hints_preserve_client_approval(registry, ctx, va
     assert outcome.restored == 0
 
 
+@posix_only
 def test_scoped_additional_permissions_are_preserved_without_network(
     registry, ctx, vault, tmp_path
 ):

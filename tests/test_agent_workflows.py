@@ -610,6 +610,10 @@ def test_registered_private_unicode_path_is_restored_and_read_locally(
     assert CANARY not in json.dumps(provider.received)
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="agent tool workspaces are POSIX-only (see docs/connect-coding-clients.md)",
+)
 @pytest.mark.parametrize("protocol", PROTOCOLS)
 def test_symlink_to_outside_workspace_refuses_tool_release(protocol, pipeline, key_store, tmp_path):
     outside = tmp_path.parent / f"outside-{tmp_path.name}.txt"
