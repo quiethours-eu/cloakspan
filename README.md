@@ -356,9 +356,14 @@ The current build supports local evaluation and synthetic-data pilots:
   multimodal input, opaque continuation and broad API compatibility remain unsupported.
 - The default vault is process-local. Mappings disappear on restart and do not
   support a multi-node deployment.
-- Chat Completions detector execution has no hard timeout. Native agent
-  inspection has an isolated-process deadline; custom regular expressions remain
-  trusted configuration.
+- Chat Completions inspection has a deadline that fails the request closed, but
+  no hard stop: the detector thread runs on, and a single regular expression
+  match that holds the GIL is not interrupted. Native agent inspection has an
+  isolated-process deadline; custom regular expressions remain trusted
+  configuration.
+- Rate limit, concurrency cap and metrics are per process and reset on
+  restart. The rate limit is per API key; the concurrency cap is global, so
+  one key with slow requests can occupy all of it.
 
 The full, current list is in [known limitations](docs/limitations.md). Report a
 vulnerability privately using [SECURITY.md](SECURITY.md); do not open a public

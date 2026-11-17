@@ -62,8 +62,12 @@ but a working exploit demonstrating greater impact is welcome.
 - Egress validation cannot prevent the final resolver/connect DNS-rebinding
   race — R-02
 - The customer-regex ReDoS screen is a heuristic, not a complete analysis — R-03
-- No built-in rate limiting or enforceable detector deadline yet
-- Error paths do not all emit audit events, and no metrics endpoint exists
+- Chat Completions rate limiting, concurrency cap and metrics are per process.
+  The rate limit is per API key; the concurrency cap is global with no per-key
+  share, so one key can occupy it; unauthenticated traffic is not rate limited
+- The Chat Completions detector deadline refuses the request but cannot stop
+  the detector thread, and cannot fire during a single regular expression
+  match that holds the GIL — R-03
 - The source SBOM path exists, but the release image SBOM, signature, scan, and
   provenance have not yet completed against a public release candidate — R-01
 

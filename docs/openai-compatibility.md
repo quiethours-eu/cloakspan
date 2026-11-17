@@ -224,16 +224,26 @@ Every error uses OpenAI's shape so existing SDKs handle it naturally:
 | 400 | `invalid_request_error` | — | Body is not valid JSON, or not a JSON object |
 | 400 | `invalid_request_error` | `streaming_unsupported` | `stream` is truthy |
 | 401 | `invalid_request_error` | `invalid_api_key` | Missing or unknown bearer token |
+| 408 | `invalid_request_error` | `request_timeout` | The body did not arrive within `SAG_REQUEST_BODY_TIMEOUT_SECONDS` |
 | 413 | `invalid_request_error` | `request_too_large` | The streamed HTTP body crossed `SAG_MAX_REQUEST_BYTES` |
+| 429 | `rate_limit_error` | `rate_limit_exceeded` | The API key is over `SAG_RATE_LIMIT_PER_MINUTE`. `Retry-After` gives whole seconds |
+| 503 | `server_error` | `capacity_exceeded` | `SAG_MAX_CONCURRENT_REQUESTS` requests, from all keys together, are already in flight. `Retry-After: 1` |
+| 503 | `inspection_error` | `detector_timeout` | Inspection exceeded `SAG_DETECTOR_TIMEOUT_SECONDS`. Nothing was forwarded. No `Retry-After`: the same input usually times out again |
 | 403 | `invalid_request_error` | — | The API key is not scoped to the requested model |
 | 403 | `policy_violation` | `blocked_by_policy` | A policy rule blocked the request. The rule name is included; the matched content is not |
 | 422 | `inspection_error` | `inspection_failed` | Content could not be inspected. Fail closed |
 | 422 | `inspection_error` | `unsupported_role` | Message role outside the allowlist |
 | 422 | `inspection_error` | `uninspectable_field` | A field that carries content the gateway cannot yet scan |
 | 422 | `inspection_error` | `unknown_field` | Reject-unknown |
-| 502 | `api_error` | `upstream_error` | Provider failure. Status only — never the provider's response body, which can echo the prompt back |
+| 502 | `api_error` | `upstream_error` | Provider failure. Status only — never the provider's response body, which can echo the prompt back. Also returned when the provider's response cannot be serialised back to the client (a lone surrogate, a non-finite number), and, without the host name, when a destination fails its per-request egress check; nothing is sent in that case |
 | 504 | `api_error` | `upstream_error` | Provider timeout |
-| 500 | `api_error` | — | Unhandled. Returns a request id to quote; the traceback goes to the log only. Also returned when a destination fails its per-request egress check, and when `SAG_LOCAL_ROUTING` requires the local model but another provider was selected. Nothing is sent in either case |
+| 500 | `api_error` | — | Unhandled. Returns a request id to quote; the traceback goes to the log only. Also returned when `SAG_LOCAL_ROUTING` requires the local model but another provider was selected. Nothing is sent |
+
+Every Chat Completions response, error or not, carries `X-Request-Id`, and
+every one writes exactly one audit event with that request id. The audit
+`error` field carries a more specific reason code than `code` here, for example
+`provider_timeout` for a 504; see
+[operations](operations.md#audit-reason-codes).
 
 No error message contains prompt content, restored values, or provider
 credentials ([SI-11](security-invariants.md#si-11--no-content-in-observability),
