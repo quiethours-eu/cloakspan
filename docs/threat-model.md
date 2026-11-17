@@ -288,7 +288,7 @@ scope. Vault scope alone would still permit replay within one conversation.
 |---|---|
 | **L / I** | M / H |
 | **Mitigation** | Minimal core dependency set (6 packages); NER and routing are optional extras; multi-stage image with no build toolchain at runtime; source SBOM and an SPDX-aware licence policy enforced in the test suite; pip-audit, Trivy and Gitleaks blocking in CI; vulnerability exceptions dated, owned, and expiring; licence-boundary test blocking proprietary `litellm-enterprise` |
-| **Residual** | **Medium.** Source and container SBOMs, dependency/secret scans, and the vulnerability scan passed for the pinned-base implementation image on 2026-10-08. Image signing, build provenance and required CI release checks remain pending; these scans do not establish release qualification. See the [implementation evidence](agent-compatibility.md#implementation-verification-2026-10-08). R-01 |
+| **Residual** | **Medium.** Source and container SBOMs, dependency/secret scans, and the vulnerability scan passed for the pinned-base implementation image on 2026-10-08. The release workflow signs the image and attests its build provenance when a tag is published; these scans and signatures do not establish release qualification. See the [implementation evidence](agent-compatibility.md#implementation-verification-2026-10-08). R-01 |
 | **Test** | `tests/test_supply_chain.py` (26), `tests/test_licence_boundary.py` (9) |
 
 ### T14. API-key theft
@@ -378,9 +378,8 @@ during the Phase 0 contract freeze and are new.
    the deadline cannot fire during a single match that holds the GIL;
    experimental agent inspection runs in a terminated-on-timeout process.
 5. **T13** — source/container SBOMs, licence policy, dependency/secret scans and
-   the pinned-base image vulnerability scan have run and passed. Image signing,
-   build provenance and required CI release checks remain pending; passing
-   scanners alone does not close supply-chain risk.
+   the pinned-base image vulnerability scan have run and passed. The release workflow signs the image and attests its build provenance when a tag is published;
+   passing scanners and a valid signature do not close supply-chain risk.
 6. **T16** — output findings do not yet drive policy actions. A model that
    invents a plausible personal code is not blocked.
 7. ~~**Uninspected pass-through.**~~ **Closed by Phase 5.** Unknown roles and
@@ -397,7 +396,8 @@ during the Phase 0 contract freeze and are new.
 11. **Release artifact assurance remains unqualified.** The existing and
     agent suites passed on the pinned-base implementation image on 2026-10-08
     ([evidence](agent-compatibility.md#implementation-verification-2026-10-08));
-    signing, build provenance and required CI release checks remain pending.
+    the release workflow signs the image and attests its build provenance
+    when a tag is published.
 
 None of these is hidden by a passing test. Each remains an explicit limitation
 until the corresponding mitigation has evidence.
