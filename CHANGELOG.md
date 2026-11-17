@@ -8,6 +8,12 @@ project remains alpha.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.1] - 2026-11-17
+
+First public evaluation release. Not production-ready. See the
+[release notes](docs/releases/v0.1.0-alpha.1.md) and the
+[staging rehearsal report](docs/releases/v0.1.0-alpha.1-staging.md).
+
 ### Added
 
 - Weekly scheduled CI run, so upstream releases and newly published
@@ -135,9 +141,3 @@ project remains alpha.
 - `SAG_METRICS_TOKEN` must be at least 32 characters, not repetitive, and not a
   tenant API key; otherwise startup fails in every environment.
 
-## [0.1.0-alpha.1] - In preparation
-
-First public evaluation release. A tagged release remains blocked until the
-documented security and operational evidence is complete. See the
-[draft release notes](docs/releases/v0.1.0-alpha.1.md) and
-[release procedure](docs/releases/README.md).

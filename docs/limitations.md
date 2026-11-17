@@ -172,8 +172,11 @@ closed.
 - Performance numbers are machine-local regression signals, not an SLO or a
   published capacity claim.
 - Release preparation pins the base image and verifies hashes for runtime
-  dependencies. A passing build does not establish operational readiness:
-  the staging install/upgrade/rollback rehearsal is still outstanding.
+  dependencies. A passing build does not establish operational readiness.
+  The [staging rehearsal](releases/v0.1.0-alpha.1-staging.md) for
+  `v0.1.0-alpha.1` was a scripted run on a shared development VM with a mock
+  provider. It did not cover a host reboot, a Docker daemon restart, the
+  published container image, or sustained load.
 
 See [security invariants](security-invariants.md) for enforcement points. Open
 risks and planned mitigations are summarized below.

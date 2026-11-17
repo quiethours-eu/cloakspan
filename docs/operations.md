@@ -52,26 +52,38 @@ The vault is in-memory by default, so an upgrade **loses every live surrogate
 mapping**. That is not a data-loss event — nothing durable is lost — but it has
 a visible symptom, so know it before the tickets arrive.
 
-1. Announce a short window. Conversations in flight will be affected.
-2. `docker compose pull && docker compose up -d`
+1. Announce a short window. Conversations in flight will be affected, and the
+   gateway is unavailable while its container is replaced: about three seconds
+   on an idle gateway in the `v0.1.0-alpha.1` rehearsal.
+2. Check out the new version, build its image, and recreate the container.
+   The bundled `compose.yaml` builds from the checkout, so there is no image
+   to pull:
+
+   ```bash
+   git fetch --tags && git checkout <new-version>
+   docker compose up -d --build
+   ```
+
 3. Watch `/readyz` until it returns 200.
-4. Expect a spike in `tokens_refused` with reason `vault_miss` for up to one
-   TTL. See *A spike in refused tokens* below.
+4. Expect a burst of `tokens_refused`. A token issued before the restart that
+   comes back in a later turn is refused as `not_minted`.
+   See *A spike in refused tokens* below.
 
-**Rollback** is the same operation with the previous tag:
-
-```bash
-docker compose down
-docker run ... secure-ai-gateway:<previous-version>
-```
+**Rollback** is the same operation with the previous version checked out.
+Read that version's `.env.example` first: a setting it does not know is
+ignored, but one it needs and you have since removed will stop it starting.
 
 There is no schema migration to reverse, because there is no persistent schema.
 That is a deliberate property of the Community Edition and the reason rollback
 is cheap here and will not be in the hosted edition.
 
 Before releasing a new version, the upgrade and rollback must have been
-*performed* from the previous release candidate, not
-merely described. **That has not been done for any version yet.**
+*performed* from the previous release candidate, not merely described. For
+`v0.1.0-alpha.1` that was done once, on 17 November 2026, from the previous
+commit on `main`: see the [staging rehearsal report](releases/v0.1.0-alpha.1-staging.md).
+The rehearsal built each image with `docker build` and selected it through a
+Compose override file, because the host had no BuildKit plugin; the one-line
+`docker compose up -d --build` form above was not itself executed there.
 
 ---
 
@@ -139,8 +151,8 @@ Check `tokens_refused_by_reason` in the audit event before assuming an attack:
 
 | Reason | Meaning |
 |---|---|
-| `vault_miss` | The token was minted by this request but the vault has no value — usually a restart or an elapsed TTL. **This is what a deploy looks like** |
-| `not_minted` | The token was not minted by this request. Attacker-supplied, hallucinated, or replayed from an earlier turn. A sustained rate is worth investigating |
+| `vault_miss` | The token was minted by this request but the vault has no value, for example because its TTL elapsed before the reply arrived |
+| `not_minted` | The token was not minted by this request. Attacker-supplied, hallucinated, or replayed from an earlier turn. **A burst right after a deploy is expected**: tokens from before the restart are refused this way. A sustained rate is worth investigating |
 | `cross_tenant` | Should be **exactly zero**. Any occurrence is an incident |
 | `key_unavailable` | A configured key was removed while still in use. Configuration error, not an attack |
 
@@ -391,12 +403,15 @@ never reach a handler, and write no audit event.
 
 Listed rather than discovered:
 
-- **Release artifact assurance remains outstanding.** The existing
+- **Release artifact assurance is limited.** The existing
   and agent container suites passed on the pinned-base implementation image on
   2026-10-08; see [implementation evidence](agent-compatibility.md#implementation-verification-2026-10-08).
-  Signing, build provenance and required CI release checks remain pending.
-- **Upgrade and rollback have never been rehearsed** from a previous release
-  candidate, which is required before GA.
+  The release workflow signs the image and attests its build provenance when a tag is published;
+  neither has been independently verified.
+- **Upgrade and rollback have been rehearsed once**, for `v0.1.0-alpha.1`, on a
+  shared development VM ([report](releases/v0.1.0-alpha.1-staging.md)).
+  Recovery from a host reboot or a Docker daemon restart, and an upgrade that
+  pulls a published image, have not been rehearsed.
 - **Limits are per process.** The rate limit, concurrency cap and metrics are
   not shared between replicas and reset on restart. There is no per-address or
   unauthenticated rate limit; put one in the reverse proxy.

@@ -1,0 +1,202 @@
+
+##### host  [11:25:41Z]
+os=Ubuntu 26.04.1 LTS kernel=7.0.0-30-generic cpus=4 mem_mib=7740
+docker=29.1.3 compose=2.40.3+ds1-0ubuntu1
+prev=cf044a85485e1703ac09f6741bb711da3ddb5c4e new=78af9a400f48bfcfd8761d628a7a67d20f7e5d8d
+
+##### 1. install the previous commit  [11:25:41Z]
+building cf044a85485e1703ac09f6741bb711da3ddb5c4e on python:3.12-alpine3.23@sha256:33a47b0a92c0766bdd77cd82bbaa4c320ce48db01a2bfe1782920ca7a16e3744
+            https://docs.docker.com/go/buildx/
+
+sha256:f8a058538a529d6f098abaa874a50846dac07777dc610dce2b97b1c0041e47f0
+image sha256:f8a058538a529d6f098abaa874a50846dac07777dc610dce2b97b1c0041e47f0 size=46257125
+ Container cloakspan-rehearsal-mockprovider-1  Created
+ Container cloakspan-rehearsal-gateway-1  Created
+ Container cloakspan-rehearsal-gateway-1  Starting
+ Container cloakspan-rehearsal-mockprovider-1  Starting
+ Container cloakspan-rehearsal-gateway-1  Started
+ Container cloakspan-rehearsal-mockprovider-1  Started
+ready after 1.6s
+running image=cloakspan-rehearsal:cf044a85485e1703ac09f6741bb711da3ddb5c4e started=2026-11-17T11:26:18.880299177Z
+user=10001:10001 readonly=true capdrop=[ALL] secopt=[no-new-privileges:true] memory=1073741824 restart=unless-stopped health=healthy
+PASS  runs as uid 10001
+PASS  read-only root filesystem
+PASS  all capabilities dropped
+PASS  no-new-privileges
+PASS  1 GiB memory limit
+PASS  write to root filesystem fails
+PASS  published on loopback only
+== probe phase=install checks=basic,prev
+PASS  healthz  status=200
+PASS  readyz  status=200
+PASS  no credential is refused  status=401
+PASS  unknown key is refused  status=401
+PASS  clean request is forwarded  status=200 decision=allow
+PASS  sensitive values are replaced before the provider  status=200 decision=transform entities=2
+PASS  tokens are restored in the reply  restored=2 refused=0
+PASS  credential is blocked and nothing is forwarded  status=403 code=blocked_by_policy
+PASS  oversized body is refused  status=413 code=request_too_large
+PASS  malformed JSON is refused  status=400
+PASS  previous version has no metrics route  status=404
+== 11/11 passed
+
+##### 2. upgrade to the release commit  [11:26:37Z]
+building 78af9a400f48bfcfd8761d628a7a67d20f7e5d8d on python:3.12-alpine3.23@sha256:33a47b0a92c0766bdd77cd82bbaa4c320ce48db01a2bfe1782920ca7a16e3744
+            https://docs.docker.com/go/buildx/
+
+sha256:5deab8c27de8d4a9bc8c3dc64e907eba14a466e99cdb6ca220d5eab9af6c3d88
+image sha256:5deab8c27de8d4a9bc8c3dc64e907eba14a466e99cdb6ca220d5eab9af6c3d88 size=46301829
+ Container cloakspan-rehearsal-gateway-1  Recreate
+ Container cloakspan-rehearsal-mockprovider-1  Running
+ Container cloakspan-rehearsal-gateway-1  Recreated
+ Container cloakspan-rehearsal-gateway-1  Starting
+ Container cloakspan-rehearsal-gateway-1  Started
+ready after 1.6s
+running image=cloakspan-rehearsal:78af9a400f48bfcfd8761d628a7a67d20f7e5d8d started=2026-11-17T11:27:06.732009751Z
+user=10001:10001 readonly=true capdrop=[ALL] secopt=[no-new-privileges:true] memory=1073741824 restart=unless-stopped health=healthy
+PASS  runs as uid 10001
+PASS  read-only root filesystem
+PASS  all capabilities dropped
+PASS  no-new-privileges
+PASS  1 GiB memory limit
+PASS  write to root filesystem fails
+PASS  published on loopback only
+== probe phase=upgrade checks=basic,old_token,new
+PASS  healthz  status=200
+PASS  readyz  status=200
+PASS  no credential is refused  status=401
+PASS  unknown key is refused  status=401
+PASS  clean request is forwarded  status=200 decision=allow
+PASS  sensitive values are replaced before the provider  status=200 decision=transform entities=2
+PASS  tokens are restored in the reply  restored=2 refused=0
+PASS  credential is blocked and nothing is forwarded  status=403 code=blocked_by_policy
+PASS  oversized body is refused  status=413 code=request_too_large
+PASS  malformed JSON is refused  status=400
+PASS  old tokenised content is available  from=install
+PASS  tokens from the previous process are not restored  status=200 restored=0 refused=2 code=-
+PASS  metrics without a token is refused  status=401
+PASS  metrics refuses a tenant API key  status=401
+PASS  metrics with its token is served  status=200 lines=58
+PASS  metrics carry no request content  leaked=0
+PASS  rate limit refuses with 429 and Retry-After  admitted=132 limit=120 retry_after=1
+PASS  another key is unaffected by that limit  status=200
+PASS  responses carry X-Request-Id
+== 19/19 passed
+
+##### 3. roll back to the previous commit  [11:27:31Z]
+ Container cloakspan-rehearsal-mockprovider-1  Running
+ Container cloakspan-rehearsal-gateway-1  Recreate
+ Container cloakspan-rehearsal-gateway-1  Recreated
+ Container cloakspan-rehearsal-gateway-1  Starting
+ Container cloakspan-rehearsal-gateway-1  Started
+ready after 1.6s
+running image=cloakspan-rehearsal:cf044a85485e1703ac09f6741bb711da3ddb5c4e started=2026-11-17T11:27:32.427087495Z
+== probe phase=rollback checks=basic,old_token,prev
+PASS  healthz  status=200
+PASS  readyz  status=200
+PASS  no credential is refused  status=401
+PASS  unknown key is refused  status=401
+PASS  clean request is forwarded  status=200 decision=allow
+PASS  sensitive values are replaced before the provider  status=200 decision=transform entities=2
+PASS  tokens are restored in the reply  restored=2 refused=0
+PASS  credential is blocked and nothing is forwarded  status=403 code=blocked_by_policy
+PASS  oversized body is refused  status=413 code=request_too_large
+PASS  malformed JSON is refused  status=400
+PASS  old tokenised content is available  from=upgrade
+PASS  tokens from the previous process are not restored  status=200 restored=0 refused=2 code=-
+PASS  previous version has no metrics route  status=404
+== 13/13 passed
+
+##### 4. roll forward to the release commit  [11:27:34Z]
+ Container cloakspan-rehearsal-mockprovider-1  Running
+ Container cloakspan-rehearsal-gateway-1  Recreate
+ Container cloakspan-rehearsal-gateway-1  Recreated
+ Container cloakspan-rehearsal-gateway-1  Starting
+ Container cloakspan-rehearsal-gateway-1  Started
+ready after 1.6s
+running image=cloakspan-rehearsal:78af9a400f48bfcfd8761d628a7a67d20f7e5d8d started=2026-11-17T11:27:35.24615628Z
+== probe phase=rollforward checks=basic,new
+PASS  healthz  status=200
+PASS  readyz  status=200
+PASS  no credential is refused  status=401
+PASS  unknown key is refused  status=401
+PASS  clean request is forwarded  status=200 decision=allow
+PASS  sensitive values are replaced before the provider  status=200 decision=transform entities=2
+PASS  tokens are restored in the reply  restored=2 refused=0
+PASS  credential is blocked and nothing is forwarded  status=403 code=blocked_by_policy
+PASS  oversized body is refused  status=413 code=request_too_large
+PASS  malformed JSON is refused  status=400
+PASS  metrics without a token is refused  status=401
+PASS  metrics refuses a tenant API key  status=401
+PASS  metrics with its token is served  status=200 lines=58
+PASS  metrics carry no request content  leaked=0
+PASS  rate limit refuses with 429 and Retry-After  admitted=132 limit=120 retry_after=1
+PASS  another key is unaffected by that limit  status=200
+PASS  responses carry X-Request-Id
+== 17/17 passed
+
+##### 5a. failure: the gateway process is killed  [11:27:43Z]
+ready after 0.0s
+started before=2026-11-17T11:27:35.24615628Z after=2026-11-17T11:27:44.099271119Z restarts=1
+PASS  container restarted by its restart policy
+== probe phase=crash checks=basic
+PASS  healthz  status=200
+PASS  readyz  status=200
+PASS  no credential is refused  status=401
+PASS  unknown key is refused  status=401
+PASS  clean request is forwarded  status=200 decision=allow
+PASS  sensitive values are replaced before the provider  status=200 decision=transform entities=2
+PASS  tokens are restored in the reply  restored=2 refused=0
+PASS  credential is blocked and nothing is forwarded  status=403 code=blocked_by_policy
+PASS  oversized body is refused  status=413 code=request_too_large
+PASS  malformed JSON is refused  status=400
+== 10/10 passed
+
+##### 5b. failure: the provider is down  [11:27:46Z]
+ Container cloakspan-rehearsal-mockprovider-1  Stopped
+== probe phase=provider-down checks=provider_down
+PASS  provider outage gives a 5xx error, not a hang or a leak  status=502 code=upstream_error
+PASS  readyz stays 200 during the provider outage  status=200
+PASS  blocking still works during the provider outage  status=403
+== 3/3 passed
+ Container cloakspan-rehearsal-mockprovider-1  Started
+== probe phase=provider-back checks=basic
+PASS  healthz  status=200
+PASS  readyz  status=200
+PASS  no credential is refused  status=401
+PASS  unknown key is refused  status=401
+PASS  clean request is forwarded  status=200 decision=allow
+PASS  sensitive values are replaced before the provider  status=200 decision=transform entities=2
+PASS  tokens are restored in the reply  restored=2 refused=0
+PASS  credential is blocked and nothing is forwarded  status=403 code=blocked_by_policy
+PASS  oversized body is refused  status=413 code=request_too_large
+PASS  malformed JSON is refused  status=400
+== 10/10 passed
+
+##### 5c. failure: required secrets are missing  [11:28:04Z]
+PASS  compose refuses to start without required values
+error while interpolating services.gateway.environment.SAG_API_KEYS: required variable SAG_API_KEYS is missing a value: Set SAG_API_KEYS in .env; no default key is provided
+exit=1
+gateway.config.ConfigurationError: Set SAG_VAULT_KEY to a persistent secret of at least 32 decoded bytes.
+PASS  production start without SAG_VAULT_KEY exits non-zero
+
+##### 5d. failure: a weak metrics token  [11:28:05Z]
+exit=1
+gateway.config.ConfigurationError: Set SAG_METRICS_TOKEN to at least 32 random characters, for example the output of openssl rand -hex 32.
+PASS  start with a short SAG_METRICS_TOKEN exits non-zero
+
+##### 6. audit stream and log hygiene  [11:28:07Z]
+audit events with error=invalid_api_key: 6
+audit events with error=request_too_large: 3
+audit events with error=invalid_json: 3
+audit events with error=rate_limit_exceeded: 1
+audit events with error=provider_unavailable: 0
+audit events with error=provider_timeout: 0
+audit events with error=provider_error: 0
+audit events with error=egress_blocked: 1
+audit events with error=destination_unavailable: 0
+log lines containing a synthetic value or a secret: 0 (of 1264 lines)
+PASS  no synthetic value or secret in any gateway log
+
+##### result  [11:28:07Z]
+failed checks or probes: 0

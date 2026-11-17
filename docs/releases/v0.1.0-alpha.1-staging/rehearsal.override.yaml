@@ -1,0 +1,18 @@
+# Staging rehearsal only: run a chosen image tag next to a mock provider.
+services:
+  gateway:
+    image: ${REHEARSAL_IMAGE:?set REHEARSAL_IMAGE}
+  mockprovider:
+    image: ${REHEARSAL_MOCK_IMAGE:?set REHEARSAL_MOCK_IMAGE}
+    entrypoint: ["python", "/mock/mock_provider.py"]
+    volumes:
+      - ../mock_provider.py:/mock/mock_provider.py:ro
+    ports:
+      - "127.0.0.1:${MOCK_PORT:?set MOCK_PORT}:9000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 128m
+    restart: "no"

@@ -420,7 +420,8 @@ exactly where a well-meaning `f"failed on {text}"` would land.
 The container log scan (`make test-container`) passed on the pinned-base
 implementation image on 2026-10-08; see
 [implementation evidence](agent-compatibility.md#implementation-verification-2026-10-08).
-Signing, build provenance and required CI release checks remain pending.
+The release workflow signs the image and attests its build provenance when a tag is published;
+neither has been independently verified.
 
 The metrics surface (`GET /metrics`, off unless `SAG_METRICS_TOKEN` is set) was
 built under this invariant: counters and gauges only, every label drawn from a
@@ -485,7 +486,10 @@ body produces exactly one event).
 `not_minted`, `vault_miss`, `cross_tenant`, `key_unavailable` — so an empty vault
 after a restart is distinguishable from an attacker enumerating tokens. Without
 that breakdown the metric was unalertable, because every deploy produced the same
-spike as an attack.
+spike as an attack. The separation is not complete: in the `v0.1.0-alpha.1`
+[staging rehearsal](releases/v0.1.0-alpha.1-staging.md) a token from before a
+restart, replayed in a later turn, was refused as `not_minted`, the same reason
+as an attacker-supplied token.
 
 Every terminal outcome of a Chat Completions request now writes exactly one
 event before the response is returned: authentication, rate-limit, capacity,
