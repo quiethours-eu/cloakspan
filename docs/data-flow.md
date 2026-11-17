@@ -74,7 +74,7 @@ flowchart TD
 | **Function** | `ApiKeyStore.authenticate` ([app.py:95](../gateway/api/app.py)) |
 | **Input** | `Authorization: Bearer <key>` |
 | **Output** | `ApiKey` → `RequestContext(tenant_id, conversation_id, request_id, api_key_id, application)` |
-| **Failure** | 401 `invalid_api_key`. No audit event |
+| **Failure** | 401 `invalid_api_key`. One audit event with `error` `invalid_api_key`, tenant `unauthenticated` and key `unknown`; the presented credential is not recorded. Then 429 `rate_limit_exceeded` and 503 `capacity_exceeded` before the body is read; see [operations](operations.md#limits-and-metrics) |
 | **Invariants** | SI-04 — every downstream vault call is scoped by the context created here |
 
 The tenant id on the key becomes the vault scope. `X-Conversation-Id` sets the

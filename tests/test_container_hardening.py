@@ -349,7 +349,20 @@ class TestContainerLogsCarryNoContent:
         assert events, "no audit events on stdout"
 
         decisions = {event["decision"] for event in events}
-        assert "block" in decisions, "the blocked request must be audited"
+        # Refusals before policy (the streaming request, for one) are also
+        # audited with decision "block", so "block" alone no longer proves the
+        # policy block was audited. Require the policy's own event: its rule,
+        # no error code, and the credential it detected.
+        policy_blocks = [
+            event
+            for event in events
+            if event["decision"] == "block"
+            and event["rule_name"] == "block-secrets"
+            and event.get("error") is None
+        ]
+        assert policy_blocks, "the policy-blocked request must be audited"
+        assert any(event["entity_counts"].get("AWS_ACCESS_KEY") for event in policy_blocks)
+        assert all(event["provider"] == "none" for event in policy_blocks)
         assert {"transform", "allow"} & decisions
 
         for event in events:

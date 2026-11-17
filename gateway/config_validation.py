@@ -39,6 +39,10 @@ _NUMBERS = {
     "SAG_MAX_INPUT_CHARS": (int, 65536, 1, None),
     "SAG_MAX_REQUEST_BYTES": (int, 1048576, 1, None),
     "SAG_REQUEST_TIMEOUT_SECONDS": (float, 120.0, 0, None),
+    "SAG_REQUEST_BODY_TIMEOUT_SECONDS": (float, 15.0, 0, 300),
+    "SAG_RATE_LIMIT_PER_MINUTE": (int, 600, 0, 1_000_000),
+    "SAG_MAX_CONCURRENT_REQUESTS": (int, 64, 1, 4096),
+    "SAG_DETECTOR_TIMEOUT_SECONDS": (float, 15.0, 0, 300),
     "SAG_AGENT_MAX_CONCURRENT": (int, 4, 1, 128),
     "SAG_AGENT_DETECTOR_TIMEOUT_SECONDS": (float, 15.0, 0, 300),
     "SAG_AGENT_STREAM_IDLE_SECONDS": (float, 120.0, 0, 3600),
@@ -46,6 +50,14 @@ _NUMBERS = {
     "SAG_AGENT_MAX_EVENT_BYTES": (int, 1048576, 1024, 8388608),
     "SAG_AGENT_MAX_OUTPUT_BYTES": (int, 8388608, 1024, 67108864),
 }
+#: Settings where zero is a documented value ("off") rather than out of range.
+#: Every other setting with a minimum of zero excludes zero itself.
+_ZERO_ALLOWED = frozenset({"SAG_RATE_LIMIT_PER_MINUTE"})
+#: Minimum length of SAG_METRICS_TOKEN, in bytes of the token as presented.
+MIN_METRICS_TOKEN_BYTES = 32
+#: A token such as 32 repetitions of one character passes the length check and
+#: nothing else. Hex output of a real generator has 16 distinct characters.
+MIN_METRICS_TOKEN_DISTINCT = 8
 _FLAGS = (
     "SAG_TRUST_ENV_PROXY",
     "SAG_BLOCK_MIXED_SCRIPT",
@@ -97,7 +109,7 @@ def inspect_environment(env: Mapping[str, str]) -> ParsedEnvironment:
             value = kind(raw)
             if isinstance(value, float) and not math.isfinite(value):
                 raise ValueError
-            if value < minimum or (minimum == 0 and value == 0):
+            if value < minimum or (minimum == 0 and value == 0 and name not in _ZERO_ALLOWED):
                 raise ValueError
             if maximum is not None and value > maximum:
                 raise ValueError
@@ -247,6 +259,49 @@ def inspect_environment(env: Mapping[str, str]) -> ParsedEnvironment:
                     check_id="secrets.vault_key.active",
                 )
             )
+
+    metrics_token = env.get("SAG_METRICS_TOKEN", "").strip()
+    if metrics_token and (
+        not metrics_token.isascii() or not metrics_token.isprintable() or " " in metrics_token
+    ):
+        issues.append(
+            _issue(
+                "SAG_METRICS_TOKEN",
+                "Metrics token contains characters a bearer header cannot carry",
+                "Set SAG_METRICS_TOKEN to printable ASCII without spaces, for example "
+                "the output of openssl rand -hex 32.",
+                check_id="metrics.token.format",
+            )
+        )
+    elif metrics_token and (
+        len(metrics_token) < MIN_METRICS_TOKEN_BYTES
+        or len(set(metrics_token)) < MIN_METRICS_TOKEN_DISTINCT
+    ):
+        # Fatal in every environment, as a short root secret is: a guessable
+        # token is never a convenience worth having.
+        issues.append(
+            _issue(
+                "SAG_METRICS_TOKEN",
+                "SAG_METRICS_TOKEN is too short or too repetitive",
+                f"Set SAG_METRICS_TOKEN to at least {MIN_METRICS_TOKEN_BYTES} random "
+                "characters, for example the output of openssl rand -hex 32.",
+                check_id="metrics.token.weak",
+            )
+        )
+    api_keys = {
+        part.split(":")[0]
+        for part in (item.strip() for item in env.get("SAG_API_KEYS", "").split(","))
+        if part
+    }
+    if metrics_token and metrics_token in api_keys:
+        issues.append(
+            _issue(
+                "SAG_METRICS_TOKEN",
+                "Metrics token is also a tenant API key",
+                "Set SAG_METRICS_TOKEN to a separate secret that is not in SAG_API_KEYS.",
+                check_id="metrics.token.reused",
+            )
+        )
 
     seen: set[str] = set()
     valid_keys = 0

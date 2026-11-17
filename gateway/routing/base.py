@@ -77,9 +77,14 @@ class ProviderError(Exception):
     up in logs and error responses (security invariants SI-11 and SI-12).
     """
 
-    def __init__(self, message: str, status_code: int = 502) -> None:
+    def __init__(
+        self, message: str, status_code: int = 502, reason: str = "provider_error"
+    ) -> None:
         super().__init__(message)
         self.status_code = status_code
+        #: A fixed reason code from ``gateway.audit.reasons.ReasonCode``, set by
+        #: the raise site. Audit and metrics read this, never the message.
+        self.reason = reason
 
 
 class ProviderAdapter(Protocol):
@@ -157,6 +162,10 @@ MAX_RESPONSE_BYTES = 8 * 1024 * 1024
 #: Retried: the upstream never processed the request, or told us to come back.
 #: 501 is excluded -- "not implemented" will still not be implemented.
 _RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
+
+
+def _reject_non_json_constant(name: str) -> Any:
+    raise ValueError(f"{name} is not a JSON value")
 
 
 def resolve_model(requested: str, override: str | None) -> str:
@@ -341,7 +350,9 @@ class OpenAICompatibleProvider:
             total += len(chunk)
             if total > self._max_response_bytes:
                 raise ProviderError(
-                    f"upstream response exceeded {self._max_response_bytes} bytes", 502
+                    f"upstream response exceeded {self._max_response_bytes} bytes",
+                    502,
+                    reason="provider_bad_response",
                 )
             chunks.append(chunk)
         return b"".join(chunks)
@@ -368,7 +379,7 @@ class OpenAICompatibleProvider:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise last_error or ProviderError(
-                    f"upstream deadline of {self._timeout}s elapsed", 504
+                    f"upstream deadline of {self._timeout}s elapsed", 504, reason="provider_timeout"
                 )
 
             try:
@@ -394,11 +405,17 @@ class OpenAICompatibleProvider:
             except httpx.TimeoutException as exc:
                 # Not retried: the upstream may have processed this, and there
                 # is no idempotency key to make a second attempt safe.
-                raise ProviderError(f"upstream timed out after {self._timeout}s", 504) from exc
+                raise ProviderError(
+                    f"upstream timed out after {self._timeout}s", 504, reason="provider_timeout"
+                ) from exc
             except httpx.TransportError as exc:
                 # Connection-level: the request was never processed, so a retry
                 # cannot duplicate anything.
-                last_error = ProviderError(f"upstream request failed ({type(exc).__name__})", 502)
+                last_error = ProviderError(
+                    f"upstream request failed ({type(exc).__name__})",
+                    502,
+                    reason="provider_unavailable",
+                )
                 if attempt >= self._max_retries:
                     raise last_error from exc
                 await self._sleep(self._backoff(attempt, None))
@@ -420,11 +437,20 @@ class OpenAICompatibleProvider:
                 raise last_error
 
             try:
-                decoded = json.loads(raw)
+                # NaN and Infinity are not JSON. Python accepts them by default,
+                # and the response could then not be serialised back to the
+                # client after it had been audited as a success.
+                decoded = json.loads(raw, parse_constant=_reject_non_json_constant)
             except ValueError as exc:
-                raise ProviderError("upstream returned a body that is not JSON", 502) from exc
+                raise ProviderError(
+                    "upstream returned a body that is not JSON", 502, reason="provider_bad_response"
+                ) from exc
             if not isinstance(decoded, dict):
-                raise ProviderError("upstream returned JSON that is not an object", 502)
+                raise ProviderError(
+                    "upstream returned JSON that is not an object",
+                    502,
+                    reason="provider_bad_response",
+                )
             return decoded
 
         raise last_error or ProviderError("upstream request failed", 502)

@@ -42,11 +42,15 @@ closed.
 - The `model` field is not inspected. Under `detected`, a clean request
   forwards the client's model name to the external provider unless
   `SAG_EXTERNAL_MODEL` replaces it.
-- A request that fails, for example because the local model is unreachable,
-  on the Chat Completions path writes no audit event, so its audit stream cannot show on its own that
-  failed requests never went external.
-- Chat Completions has no detector timeout. A detector that hangs holds that request, and
-  nothing is forwarded until it returns.
+- A Chat Completions request that fails after it was handed to a
+  destination's client, for example because the local model is unreachable,
+  writes an audit event whose `provider` names that destination, so the audit
+  stream shows that it did not go external. A request refused or failed before
+  that, including one whose destination failed its request-time egress check,
+  has `provider` `none`.
+- A Chat Completions detector that exceeds `SAG_DETECTOR_TIMEOUT_SECONDS` fails
+  the request closed: nothing is forwarded. The detector thread itself is not
+  stopped; see below.
 
 ## API and runtime
 
@@ -57,17 +61,52 @@ closed.
   a sensitive value can cross chunk boundaries.
 - The default vault is in memory. It is single-node, loses mappings on restart,
   and cannot support restoration across replicas.
-- Chat Completions detector execution has no hard timeout. Customer regular expressions use
-  Python's backtracking engine and must be reviewed as trusted configuration; a
-  pathological pattern can consume unbounded CPU within the request worker.
+- Chat Completions inspection has a wall-clock deadline
+  (`SAG_DETECTOR_TIMEOUT_SECONDS`), but no hard stop. The request is refused
+  with 503 `detector_timeout` and nothing is forwarded; the worker thread keeps
+  running until the detector returns and keeps its concurrency slot until
+  then. The deadline is checked by the event loop, so it cannot fire during a
+  single call that holds the GIL: one catastrophic regular expression match
+  stops the loop, `/healthz` included, until it returns. Customer regular
+  expressions use Python's backtracking engine and must be reviewed as trusted
+  configuration; a pathological pattern can still consume unbounded CPU.
 - Provider destinations are validated at startup and per request, but the HTTP
   transport resolves DNS again when it connects. Fast DNS rebinding is not
   fully prevented.
 - Upstream response bytes and restored content are capped separately before the
   final response is assembled.
-- Chat Completions error responses and provider failures do not currently write audit events.
+- Every Chat Completions request writes exactly one audit event, refusals and
+  failures included, with a stable `error` reason code. A broken audit sink is
+  logged, not retried: the request still fails closed, but its event is lost.
+  404 and 405 responses for paths and methods that do not exist come from the
+  framework and are not audited.
+- Rate limit, concurrency cap and metrics are per process. They are not
+  shared between replicas, reset on restart, and do not limit unauthenticated
+  requests or individual client addresses. Each refused unauthenticated
+  request still writes an audit event.
+- The rate limit is per API key; the concurrency cap is global. There is no
+  per-key share of the cap, so one key can occupy every slot with legitimate
+  slow requests (a long provider call holds its slot for up to
+  `SAG_REQUEST_TIMEOUT_SECONDS`) and every other key then gets 503
+  `capacity_exceeded`. The body deadline (`SAG_REQUEST_BODY_TIMEOUT_SECONDS`)
+  only bounds how long a slow upload can hold a slot.
+- A detector that times out stores no vault mapping: the worker checks an
+  abandoned flag before each message's transformation. A transformation that
+  had already started when the deadline fired completes, so in that narrow
+  window the surrogates for one message can still be written; they expire on
+  the vault TTL and cannot be restored, because the request's provenance is
+  gone.
+- A response is refused as `provider_bad_response` when it cannot be
+  serialised (a lone surrogate, a non-finite number). If the offending value
+  came from the client's own prompt and was restored into the response, the
+  reason code still names the provider.
+- `GET /metrics` is served on the API port behind its own bearer token. It has
+  no history and covers only the Chat Completions path.
 - Chat Completions cancellation releases the client connection but cannot interrupt synchronous
-  detector work already running in a worker thread.
+  detector work already running in a worker thread. That work keeps its
+  concurrency slot until it returns, and a detector still running at shutdown
+  delays process exit until it returns or the container runtime kills the
+  process.
 
 ## Experimental coding-agent adapters
 

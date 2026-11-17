@@ -18,7 +18,7 @@ import os
 import re
 import secrets
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -214,6 +214,22 @@ class Settings:
     #: JSON parsing can duplicate a large body in memory.
     max_request_bytes: int = 1_048_576
     request_timeout_seconds: float = 120.0
+    #: Deadline for receiving a Chat Completions request body. Short, because
+    #: the request already holds a concurrency slot while the body arrives.
+    request_body_timeout_seconds: float = 15.0
+    #: Chat Completions requests per minute per API key, process-local. The
+    #: bucket holds one minute's allowance. Zero disables the limit.
+    rate_limit_per_minute: int = 600
+    #: Chat Completions requests admitted at once, process-local. Beyond it a
+    #: request is refused immediately with 503; nothing queues. A request whose
+    #: detector timed out keeps its slot until the detector thread returns.
+    max_concurrent_requests: int = 64
+    #: Wall-clock bound on Chat Completions inspection. On expiry nothing is
+    #: forwarded and the client gets 503 ``detector_timeout``.
+    detector_timeout_seconds: float = 15.0
+    #: Bearer token for ``GET /metrics``. Empty means the endpoint does not
+    #: exist. Never a tenant API key.
+    metrics_token: str = field(default="", repr=False)
     log_level: str = "INFO"
 
     external_base_url: str = ""
@@ -307,6 +323,13 @@ class Settings:
             max_input_chars=int(parsed.numbers.get("SAG_MAX_INPUT_CHARS", 65536)),
             max_request_bytes=int(parsed.numbers.get("SAG_MAX_REQUEST_BYTES", 1048576)),
             request_timeout_seconds=float(parsed.numbers.get("SAG_REQUEST_TIMEOUT_SECONDS", 120)),
+            request_body_timeout_seconds=float(
+                parsed.numbers.get("SAG_REQUEST_BODY_TIMEOUT_SECONDS", 15)
+            ),
+            rate_limit_per_minute=int(parsed.numbers.get("SAG_RATE_LIMIT_PER_MINUTE", 600)),
+            max_concurrent_requests=int(parsed.numbers.get("SAG_MAX_CONCURRENT_REQUESTS", 64)),
+            detector_timeout_seconds=float(parsed.numbers.get("SAG_DETECTOR_TIMEOUT_SECONDS", 15)),
+            metrics_token=env.get("SAG_METRICS_TOKEN", "").strip(),
             log_level=env.get("SAG_LOG_LEVEL", "INFO"),
             external_base_url=env.get("SAG_EXTERNAL_BASE_URL", ""),
             external_api_key=env.get("SAG_EXTERNAL_API_KEY", ""),
