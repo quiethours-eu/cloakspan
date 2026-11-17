@@ -26,8 +26,9 @@ Before publishing the first alpha:
 1. Complete the security and operational evidence in [ROADMAP.md](../../ROADMAP.md).
    In particular, record the Hetzner staging install, upgrade, rollback, and
    failure rehearsal in `docs/releases/v0.1.0-alpha.1-staging.md`, including
-   the tested commit, host, commands, observed results, and date. No staging
-   host or rehearsal report is available yet; the tag workflow refuses to
+   the tested commit, host, commands, observed results, and date. The
+   [report for this alpha](v0.1.0-alpha.1-staging.md) records the rehearsal of
+   17 November 2026 and what it did not cover. The tag workflow refuses to
    publish without that report and finalized release notes.
 2. Keep the base-image digest pinned and the runtime dependencies hash-verified.
    Re-run the container build, hardening tests, SBOM, and vulnerability checks
