@@ -970,3 +970,73 @@ class TestProvenanceIsolationUnderFailure:
         )
         assert outcome.restored == 0
         assert CANARY not in outcome.text
+
+
+# ---------------------------------------------------------------------------
+# Reason codes: audit and metrics read ProviderError.reason, never the message
+# ---------------------------------------------------------------------------
+
+
+def _connection_refused(request):
+    raise httpx.ConnectError("refused", request=request)
+
+
+def _read_timeout(request):
+    raise httpx.ReadTimeout("slow", request=request)
+
+
+class TestProviderReasonCodes:
+    """Each raise site names its failure class, so audit and metrics can."""
+
+    @pytest.mark.parametrize(
+        ("handler", "kwargs", "reason"),
+        [
+            (_read_timeout, {}, "provider_timeout"),
+            (_connection_refused, {"max_retries": 0}, "provider_unavailable"),
+            (lambda request: httpx.Response(500), {"max_retries": 0}, "provider_error"),
+            (lambda request: httpx.Response(400), {}, "provider_error"),
+            (lambda request: httpx.Response(200, content=b"<html/>"), {}, "provider_bad_response"),
+            (lambda request: httpx.Response(200, json=[1]), {}, "provider_bad_response"),
+            (
+                lambda request: httpx.Response(200, content=b'{"choices": [], "x": NaN}'),
+                {},
+                "provider_bad_response",
+            ),
+            (
+                lambda request: httpx.Response(200, content=b"x" * (MAX_RESPONSE_BYTES + 1)),
+                {},
+                "provider_bad_response",
+            ),
+        ],
+        ids=[
+            "timeout",
+            "unreachable",
+            "5xx",
+            "4xx",
+            "not-json",
+            "not-object",
+            "nan",
+            "oversized",
+        ],
+    )
+    async def test_reason(self, handler, kwargs, reason):
+        provider = make_provider(handler, **kwargs)
+        with pytest.raises(ProviderError) as caught:
+            await provider.chat_completion({"model": "m", "messages": []})
+        assert caught.value.reason == reason
+
+    async def test_an_elapsed_total_deadline_is_a_timeout(self):
+        attempts = 0
+
+        def handler(request):
+            nonlocal attempts
+            attempts += 1
+            return httpx.Response(200, json=_completion())
+
+        # A budget already spent: the loop refuses before the first attempt.
+        provider = make_provider(handler, timeout_seconds=-1.0)
+        with pytest.raises(ProviderError) as caught:
+            await provider.chat_completion({"model": "m", "messages": []})
+        assert attempts == 0
+        assert caught.value.status_code == 504
+        assert caught.value.reason == "provider_timeout"

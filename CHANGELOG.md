@@ -44,6 +44,28 @@ project remains alpha.
 - Contribution, conduct, support, issue, and pull-request guidance.
 - Safe example environment and Docker build-context exclusions.
 - Production startup validation for policy destinations and API keys.
+- Chat Completions per-key rate limit (`SAG_RATE_LIMIT_PER_MINUTE`, default
+  600, `0` to turn off): 429 `rate_limit_exceeded` with `Retry-After`.
+  Process-local; buckets exist only for authenticated keys.
+- Chat Completions concurrency cap (`SAG_MAX_CONCURRENT_REQUESTS`, default 64,
+  global across keys): 503 `capacity_exceeded` with `Retry-After`, refused
+  immediately rather than queued, without spending the key's rate-limit
+  allowance.
+- Chat Completions request body deadline (`SAG_REQUEST_BODY_TIMEOUT_SECONDS`,
+  default 15): 408 `request_timeout`, so a slow upload cannot hold a
+  concurrency slot for the whole provider deadline.
+- Chat Completions detector deadline (`SAG_DETECTOR_TIMEOUT_SECONDS`, default
+  15): 503 `detector_timeout` without `Retry-After`, nothing forwarded. A
+  detector still running after its deadline keeps its concurrency slot until
+  it returns, and does not write its surrogates to the vault. Detection runs
+  on a dedicated thread pool the size of the cap.
+- One audit event for every terminal outcome of a Chat Completions request,
+  refusals and failures included, with a stable `error` reason code. Events for
+  requests refused before validation use fixed placeholders instead of the
+  presented credential, conversation header or model.
+- `GET /metrics` in the Prometheus text format, only when `SAG_METRICS_TOKEN`
+  is set and only for that token. Counters and gauges for outcomes, refusal
+  reasons, token refusals and requests in flight, with fixed label sets.
 
 ### Changed
 
@@ -96,6 +118,22 @@ project remains alpha.
   the request schema does not accept, instead of forwarding them uninspected.
   The HTTP API already returned 422 for all of these; direct callers of
   `SecurityPipeline.process` now get `DetectionError`.
+- `SecurityPipeline.process` writes exactly one audit event on every exit,
+  including detector failures, provider failures and cancellation, which
+  previously wrote none. A cancelled request now has an event with `error`
+  `cancelled` instead of no event.
+- A provider response containing `NaN` or `Infinity`, which are not JSON, or
+  any value the response cannot be serialised with (a lone surrogate, an
+  overflowing number), is refused as a bad upstream response (502,
+  `provider_bad_response`) before the audit event is written, instead of being
+  audited as a success and then failing with 500. This applies to every
+  provider adapter.
+- A client that disconnects while sending the body is audited as `cancelled`
+  instead of 400 `invalid_json`.
+- A destination that fails its per-request egress check now returns 502
+  `upstream_error` without naming the host, instead of 500.
+- `SAG_METRICS_TOKEN` must be at least 32 characters, not repetitive, and not a
+  tenant API key; otherwise startup fails in every environment.
 
 ## [0.1.0-alpha.1] - In preparation
 

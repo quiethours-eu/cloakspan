@@ -140,7 +140,13 @@ class TestCancellation:
         with pytest.raises(asyncio.CancelledError):
             await task
 
-        assert audit_sink.events == [], "a cancelled request writes no success event"
+        # A cancelled request writes no success event. It writes exactly one
+        # event, and that event says it was cancelled and restored nothing.
+        assert len(audit_sink.events) == 1
+        [event] = audit_sink.events
+        assert event.error == "cancelled", "a cancelled request writes no success event"
+        assert event.tokens_restored == 0
+        assert CANARY not in event.to_json()
 
 
 # ---------------------------------------------------------------------------

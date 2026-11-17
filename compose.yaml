@@ -53,6 +53,15 @@ services:
       SAG_MAX_INPUT_CHARS: "${SAG_MAX_INPUT_CHARS:-65536}"
       SAG_MAX_REQUEST_BYTES: "${SAG_MAX_REQUEST_BYTES:-1048576}"
       SAG_REQUEST_TIMEOUT_SECONDS: "${SAG_REQUEST_TIMEOUT_SECONDS:-120}"
+      # Chat Completions admission limits, per process. The rate limit is per
+      # API key and 0 turns it off; the concurrency cap is global.
+      SAG_REQUEST_BODY_TIMEOUT_SECONDS: "${SAG_REQUEST_BODY_TIMEOUT_SECONDS:-15}"
+      SAG_RATE_LIMIT_PER_MINUTE: "${SAG_RATE_LIMIT_PER_MINUTE:-600}"
+      SAG_MAX_CONCURRENT_REQUESTS: "${SAG_MAX_CONCURRENT_REQUESTS:-64}"
+      SAG_DETECTOR_TIMEOUT_SECONDS: "${SAG_DETECTOR_TIMEOUT_SECONDS:-15}"
+      # Unset: GET /metrics does not exist. Set: at least 32 random characters
+      # (openssl rand -hex 32), never one of the SAG_API_KEYS.
+      SAG_METRICS_TOKEN: "${SAG_METRICS_TOKEN:-}"
       SAG_LOG_LEVEL: "${SAG_LOG_LEVEL:-INFO}"
       # Opt-in only. Bind-mount the client workspace read-only at the same
       # absolute path before enabling tool path checks. See deployment/clients/.

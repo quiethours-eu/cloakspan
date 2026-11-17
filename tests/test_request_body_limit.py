@@ -125,7 +125,12 @@ async def test_oversized_body_is_openai_shaped_and_never_inspected(
         }
     }
     assert mock_provider.received == []
-    assert audit_sink.events == []
+    # Never inspected: the one audit event is the refusal, with nothing
+    # detected and no provider.
+    [event] = audit_sink.events
+    assert event.error == "request_too_large"
+    assert event.entity_counts == {}
+    assert event.provider == "none"
 
 
 async def test_chunked_body_stops_being_read_when_limit_is_crossed(pipeline, key_store):

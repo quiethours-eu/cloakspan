@@ -74,7 +74,9 @@ been written but before the provider responds:
 - The provenance set is discarded with the request.
 - **Vault records are not deleted.** They expire on TTL like any other record.
 - No audit event is written for a cancelled request today; a `cancelled` outcome
-  is added to the audit schema.
+  is added to the audit schema. *(Update: implemented. A cancelled Chat
+  Completions request now writes one event with `error` `cancelled`; a
+  detector thread still running keeps its concurrency slot until it returns.)*
 
 Deleting vault records on cancellation was considered and rejected: cancellation
 is exactly when a client retries at the application layer, and a deleted mapping

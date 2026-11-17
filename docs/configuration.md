@@ -36,6 +36,11 @@ file.
 | `SAG_MAX_INPUT_CHARS` | `65536` | Total message characters inspected per request. Raising it increases CPU cost. |
 | `SAG_MAX_REQUEST_BYTES` | `1048576` | HTTP body limit enforced while streaming, before JSON parsing. |
 | `SAG_REQUEST_TIMEOUT_SECONDS` | `120` | Total provider deadline across attempts. |
+| `SAG_REQUEST_BODY_TIMEOUT_SECONDS` | `15` | Deadline for receiving a Chat Completions request body; 0–300 seconds, exclusive of zero. Over it: 408 `request_timeout`. Short because the request already holds a concurrency slot while the body arrives. |
+| `SAG_RATE_LIMIT_PER_MINUTE` | `600` | Chat Completions requests per minute per API key, as a token bucket that holds one minute's allowance. Over it: 429 `rate_limit_exceeded` with `Retry-After`. `0` turns the limit off; maximum 1000000. Per process, keyed by API key id, reset on restart. |
+| `SAG_MAX_CONCURRENT_REQUESTS` | `64` | Chat Completions requests admitted at once, per process and shared by every API key (there is no per-key share); 1–4096. Over it: 503 `capacity_exceeded` with `Retry-After: 1`, immediately, with no queue, and the request does not count against the key's rate limit. Also the size of the dedicated detector thread pool. |
+| `SAG_DETECTOR_TIMEOUT_SECONDS` | `15` | Wall-clock deadline for Chat Completions inspection; 0–300 seconds, exclusive of zero. On expiry nothing is forwarded and the client gets 503 `detector_timeout`, without `Retry-After`. A detector still running keeps its concurrency slot until it returns, and does not write its vault mappings. See [limitations](limitations.md) for what this cannot interrupt, and the one narrow window in which a mapping can still be written. |
+| `SAG_METRICS_TOKEN` | none | Enables `GET /metrics` and is the only credential it accepts. At least 32 characters with at least 8 distinct ones, printable ASCII without spaces, and not one of `SAG_API_KEYS`; anything else stops startup in every environment. Unset, the route does not exist (404). See [operations](operations.md#metrics). |
 | `SAG_BIND_HOST` | `0.0.0.0` from source; Compose publishes on `127.0.0.1` | Uvicorn bind address. |
 | `SAG_PORT` | `8080` | Uvicorn port. |
 | `SAG_LOG_LEVEL` | `INFO` | Application log level. |
@@ -65,8 +70,10 @@ provider must implement each enabled native protocol; no external fallback occur
 The shared inspection/body limits apply to all protocol content locations.
 Agent body reads use `SAG_REQUEST_TIMEOUT_SECONDS`; native provider reads use the
 agent idle budget and completion work is bounded by the agent total budget.
-Custom detectors run in killable processes on these endpoints; the existing Chat
-Completions thread path retains its documented timeout limits.
+Custom detectors run in killable processes on these endpoints; the Chat
+Completions thread path has a deadline (`SAG_DETECTOR_TIMEOUT_SECONDS`) but no
+hard stop. `SAG_RATE_LIMIT_PER_MINUTE`, `SAG_MAX_CONCURRENT_REQUESTS` and
+`/metrics` do not cover the agent endpoints.
 
 For containers, mount the synthetic/client workspace read-only at the same absolute
 path used by the client. The default Compose service deliberately grants no host

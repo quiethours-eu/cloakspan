@@ -21,6 +21,28 @@ class DetectionError(Exception):
     """A detector failed or content could not be inspected. Fails closed."""
 
 
+class PreparationAbandonedError(DetectionError):
+    """The request that started this preparation has already been refused.
+
+    Raised in the worker thread, before any vault write, when the caller set
+    the ``abandoned`` flag (detector timeout or cancellation). Nobody awaits
+    the result; the point is that an abandoned preparation stores nothing.
+    """
+
+
+def _raise_if_abandoned(abandoned: Any) -> None:
+    if abandoned is not None and abandoned.is_set():
+        raise PreparationAbandonedError("preparation abandoned before the vault write")
+
+
+class DetectorTimeoutError(DetectionError):
+    """Inspection did not finish within its deadline. Nothing is forwarded.
+
+    A subclass of :class:`DetectionError` so that every caller which already
+    refuses an uninspected request on a detector failure refuses this too.
+    """
+
+
 @dataclass(slots=True)
 class InspectedMessage:
     index: int
@@ -173,12 +195,16 @@ class PreparationService(TextInspectionService):
         inspected: list[InspectedMessage],
         should_transform: bool,
         provenance: TokenProvenance,
+        abandoned: Any = None,
     ) -> tuple[dict[str, Any], int]:
         outbound = dict(payload)
         outbound["messages"] = [dict(m) for m in payload["messages"]]
         transformed_count = 0
         for message in inspected:
             if should_transform:
+                # Checked before every message, because each transform writes
+                # its surrogates to the vault.
+                _raise_if_abandoned(abandoned)
                 result = self._transformer.transform(ctx, message.text, message.spans, provenance)
                 outbound["messages"][message.index]["content"] = result.text
                 transformed_count += result.replaced
@@ -186,7 +212,15 @@ class PreparationService(TextInspectionService):
                 outbound["messages"][message.index]["content"] = message.text
         return outbound, transformed_count
 
-    def prepare(self, ctx: RequestContext, payload: dict[str, Any]) -> PreparedRequest:
+    def prepare(
+        self, ctx: RequestContext, payload: dict[str, Any], abandoned: Any = None
+    ) -> PreparedRequest:
+        """Inspect, decide, and transform one request.
+
+        ``abandoned`` is an optional ``threading.Event``. When it is set -- the
+        caller has stopped waiting -- preparation raises instead of writing
+        surrogates to the vault, so a refused request leaves no mapping behind.
+        """
         inspection, inspected = self.inspect_payload(payload)
         base_decision, decision = self._policy.evaluate_with_base(ctx, inspection)
         encoding_signals: dict[str, int] = {}
@@ -203,6 +237,7 @@ class PreparationService(TextInspectionService):
                 inspected,
                 decision.action in (Action.TRANSFORM, Action.ROUTE_LOCAL),
                 provenance,
+                abandoned,
             )
         return PreparedRequest(
             inspected=inspected,

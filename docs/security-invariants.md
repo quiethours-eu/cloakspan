@@ -366,12 +366,21 @@ loader refuses a policy without a catch-all rule
 token verbatim rather than partially restoring
 ([restoration/engine.py:96](../gateway/restoration/engine.py)).
 
-**Test.** `evals/leakage/...::TestFailClosed`, `tests/test_policy_engine.py::TestValidation`.
+**Test.** `evals/leakage/...::TestFailClosed`, `tests/test_policy_engine.py::TestValidation`,
+`tests/test_chat_limits_audit_metrics.py::TestDetectorTimeout` (a timed-out
+detector forwards nothing, is audited, and keeps holding capacity),
+`::TestOneAuditEventPerOutcome::test_an_exception_in_the_limiter_fails_closed`.
 
-**Status.** ✅ **MET** for detectors, policy, and restoration. **Detector
-*timeouts* are not implemented** — a detector that hangs blocks the request
-thread until the client gives up, which fails closed by accident rather than by
-design. Tracked as R-03 (ReDoS) in the risk register.
+**Status.** ✅ **MET** for detectors, policy, and restoration. Chat Completions
+inspection now has a wall-clock deadline (`SAG_DETECTOR_TIMEOUT_SECONDS`): on
+expiry the request is refused with 503 `detector_timeout` and nothing is
+forwarded. The worker thread cannot be stopped and keeps its concurrency slot
+until the detector returns. The deadline is checked by the event loop, so a
+single call that holds the GIL — one catastrophic regular expression match —
+is not interrupted and stalls the loop until it returns; that case still fails
+closed by waiting rather than by the deadline. Tracked as R-03 (ReDoS) in the
+risk register. The experimental agent path terminates an isolated detector
+process instead.
 
 **Owner.** QA/reliability owner.
 
@@ -396,7 +405,12 @@ and the exception type, never the text
 ([pipeline.py:117](../gateway/inspection/pipeline.py)).
 
 **Test.** `tests/test_audit_and_logging.py::TestAuditContainsNoRawContent` (canary
-value), `::test_audit_event_has_no_extensible_field` (structural).
+value), `::test_audit_event_has_no_extensible_field` (structural),
+`tests/test_chat_limits_audit_metrics.py` (a canary in the prompt reaches no
+audit event on any outcome and is not in `/metrics`; a canary in a presented
+credential, the conversation header, the model or a field name reaches no event
+written for a request refused before validation; metric label values outside
+their fixed sets become `other`).
 
 **Status.** 🔶 **PARTIAL.** Audit and error paths are enforced and tested —
 `TestExceptionsCarryNoPlaintext` searches the `str`, `repr`, and full traceback
@@ -408,9 +422,19 @@ implementation image on 2026-10-08; see
 [implementation evidence](agent-compatibility.md#implementation-verification-2026-10-08).
 Signing, build provenance and required CI release checks remain pending.
 
+The metrics surface (`GET /metrics`, off unless `SAG_METRICS_TOKEN` is set) was
+built under this invariant: counters and gauges only, every label drawn from a
+fixed set in `gateway/telemetry/metrics.py`, no tenant, key, model or
+conversation.
+
 Still open: OpenTelemetry tracing is not implemented and must be built
-redaction-first; there is no metrics surface yet. Both belong under this
-invariant, not after it.
+redaction-first. It belongs under this invariant, not after it. Every event
+written once a request has passed validation — success, policy block, and the
+inspection, detector-timeout, provider, restoration and cancellation failures —
+records the caller's `model` and `X-Conversation-Id` verbatim, as success
+events always have. Both are caller-chosen strings that the gateway neither
+inspects nor length-limits beyond the HTTP size limits; a client can put
+arbitrary text in them, and it will appear in the audit stream.
 
 **Owner.** Platform owner.
 
@@ -451,18 +475,29 @@ records `tokens_restored` and `tokens_refused`
 stamped into every event, so a decision is reproducible.
 
 **Test.** `tests/test_audit_and_logging.py::TestAuditSerialisation`,
-`tests/test_api_e2e.py::TestChatCompletions::test_blocked_request_returns_403`.
+`tests/test_api_e2e.py::TestChatCompletions::test_blocked_request_returns_403`,
+`tests/test_chat_limits_audit_metrics.py::TestOneAuditEventPerOutcome` (one
+event for each refusal and failure class, and a property test that any request
+body produces exactly one event).
 
-**Status.** 🔶 **PARTIAL.** The audit schema now carries a version
-(`AUDIT_SCHEMA_VERSION`, currently 2) and refusals are broken down by reason —
+**Status.** ✅ **MET** on Chat Completions. The audit schema carries a version
+(`AUDIT_SCHEMA_VERSION`, currently 3) and refusals are broken down by reason —
 `not_minted`, `vault_miss`, `cross_tenant`, `key_unavailable` — so an empty vault
 after a restart is distinguishable from an attacker enumerating tokens. Without
 that breakdown the metric was unalertable, because every deploy produced the same
 spike as an attack.
 
-Still open: `DetectionError` and `ProviderError` paths return 4xx/5xx **without
-writing an audit event**, so a request refused for un-inspectable content leaves
-no record. Phase 6.
+Every terminal outcome of a Chat Completions request now writes exactly one
+event before the response is returned: authentication, rate-limit, capacity,
+contract, inspection, detector-timeout, egress, provider, restoration and
+internal failures, and cancellation, each with a stable `error` reason code
+(see [operations](operations.md#audit-reason-codes)).
+`SecurityPipeline.process` writes the event on every exit once a request
+reaches it; the HTTP layer writes it for refusals before that.
+
+Limits: a failing audit sink is logged and the request still fails closed, but
+its event is lost; framework 404/405 responses for routes that do not exist are
+not audited.
 
 **Owner.** Platform owner.
 
@@ -671,25 +706,24 @@ happened.
 | SI-10 | Fail closed | ✅ | ✅ |
 | SI-11 | No content in observability | 🔶 | 🔶 |
 | SI-12 | No provider credentials in logs or errors | ✅ | ✅ |
-| SI-13 | Security-critical actions produce audit evidence | 🔶 | 🔶 |
+| SI-13 | Security-critical actions produce audit evidence | 🔶 | ✅ |
 | SI-14 | Explicit egress | ❌ | ✅ |
 | SI-15 | No control-plane dependency on the request path | ✅ | ✅ |
 | SI-16 | Retry and concurrency safety | ❌ | 🔶 |
 | SI-17 | Original-text integrity | ❌ | ✅ |
 | SI-18 | No production claim without independent review | ✅ | ✅ |
 
-**15 met, 3 partial, 0 not met** (was 7 / 6 / 5 at the contract freeze).
+**16 met, 2 partial, 0 not met** (was 7 / 6 / 5 at the contract freeze).
 Community Edition beta requires all eighteen at ✅, with any 🔶 carrying a
 written, dated waiver with a named owner.
 
-Nothing is at ❌ any more. The three at 🔶 are all "enforced, with a named gap",
+Nothing is at ❌ any more. The two at 🔶 are both "enforced, with a named gap",
 not "unenforced":
 
-- **SI-11** — audit and error paths are covered; the container log scan passed
-  on the development image, while the exact release artifact remains unqualified.
-  Tracing and metrics are not implemented and must be built redaction-first.
-- **SI-13** — the success and policy-block paths are audited; the error paths
-  still write no audit event.
+- **SI-11** — audit, error paths and the metrics surface are covered; the
+  container log scan passed on the development image, while the exact release
+  artifact remains unqualified. Tracing is not implemented and must be built
+  redaction-first.
 - **SI-16** — concurrency, cancellation, and retry are all enforced and tested;
   the total-deadline assertion is weaker than it should be.
 

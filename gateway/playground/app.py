@@ -50,8 +50,9 @@ async def _bounded_json(request: Request, limit: int) -> Any:
 def create_playground_app(settings: Settings, *, port: int, access_code: str) -> FastAPI:
     if not 1 <= port <= 65535:
         raise ValueError("Port must be between 1 and 65535.")
-    # Provider credentials are irrelevant to preview and never enter the worker.
-    settings = replace(settings, external_api_key="")
+    # Provider credentials are irrelevant to preview and never enter the worker;
+    # nor does the metrics token, since the preview serves no metrics.
+    settings = replace(settings, external_api_key="", metrics_token="")
     config: PreviewConfiguration = describe_preview(settings)
     supervisor = WorkerSupervisor(settings)
     expected_host = f"127.0.0.1:{port}"

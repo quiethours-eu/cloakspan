@@ -251,9 +251,9 @@ scope. Vault scope alone would still permit replay within one conversation.
 | **Asset** | availability |
 | **Path** | A 100 MB prompt, or a customer regex like `(a+)+` evaluated against attacker text |
 | **L / I** | M / M |
-| **Mitigation** | `SAG_MAX_INPUT_CHARS` (default 64k; 256k cost 558 ms of CPU per request, letting one tenant hold an instance at ~2 rps with legitimate traffic) enforced during inspection; customer patterns are length-capped and screened for nested unbounded quantifiers; container memory limit of 1 GB turns exhaustion into a restart |
-| **Residual** | **Medium.** The regex screen is a heuristic, not a complete ReDoS analysis — Python's `re` has no backtracking limit |
-| **Test** | `test_detectors.py::test_rejects_catastrophic_backtracking_pattern`, `test_oversized_request_is_refused` |
+| **Mitigation** | `SAG_MAX_INPUT_CHARS` (default 64k; 256k cost 558 ms of CPU per request, letting one tenant hold an instance at ~2 rps with legitimate traffic) enforced during inspection; customer patterns are length-capped and screened for nested unbounded quantifiers; container memory limit of 1 GB turns exhaustion into a restart. Chat Completions also has a per-key rate limit, a concurrency cap that refuses rather than queues, and a detector deadline after which nothing is forwarded and the still-running detector keeps its slot |
+| **Residual** | **Medium.** The regex screen is a heuristic, not a complete ReDoS analysis — Python's `re` has no backtracking limit, and the detector deadline cannot fire during a single match that holds the GIL. The limits are per process and do not cover unauthenticated traffic |
+| **Test** | `test_detectors.py::test_rejects_catastrophic_backtracking_pattern`, `test_oversized_request_is_refused`, `test_chat_limits_audit_metrics.py::TestRateLimit`, `::TestConcurrencyCap`, `::TestDetectorTimeout` |
 | **Follow-up** | Evaluate the `regex` module's timeout support, or run detection in a bounded worker. R-03 |
 
 ### T10. Detector outage → silent bypass
@@ -373,8 +373,10 @@ during the Phase 0 contract freeze and are new.
    native agent adapters inspect registered tools; arbitrary formats remain refused.
 3. ~~**T6** — no egress allowlist.~~ **Closed by Phase 5.** Residual is fast DNS
    rebinding, which needs a pinned transport.
-4. **T9** — the ReDoS screen is a heuristic. Chat Completions detector execution
-   has no hard timeout; experimental agent inspection runs in a terminated-on-timeout process.
+4. **T9** — the ReDoS screen is a heuristic. Chat Completions inspection has a
+   deadline that fails the request closed, but its thread cannot be stopped and
+   the deadline cannot fire during a single match that holds the GIL;
+   experimental agent inspection runs in a terminated-on-timeout process.
 5. **T13** — source/container SBOMs, licence policy, dependency/secret scans and
    the pinned-base image vulnerability scan have run and passed. Image signing,
    build provenance and required CI release checks remain pending; passing
@@ -389,10 +391,9 @@ during the Phase 0 contract freeze and are new.
    failing to restore.
 9. ~~**Retry and concurrency behaviour is untested.**~~ **Closed by Phases 3 and
    5.** Concurrency, cancellation, and retry are enforced and tested.
-10. **Chat Completions error paths write no audit event (new).** A request refused for
-    un-inspectable content or a provider failure leaves no record an operator
-    can query. [SI-13](security-invariants.md#si-13--security-critical-actions-produce-audit-evidence);
-    Phase 6.
+10. ~~**Chat Completions error paths write no audit event.**~~ **Closed.** Every
+    terminal outcome writes exactly one event with a stable reason code.
+    [SI-13](security-invariants.md#si-13--security-critical-actions-produce-audit-evidence).
 11. **Release artifact assurance remains unqualified.** The existing and
     agent suites passed on the pinned-base implementation image on 2026-10-08
     ([evidence](agent-compatibility.md#implementation-verification-2026-10-08));
@@ -415,7 +416,7 @@ Stated so the coverage claim is checkable rather than assumed:
 | T6 SSRF | SI-14 |
 | T7 Credential leakage | SI-12 |
 | T8 Raw content in logs | SI-11 |
-| T9 DoS | SI-02 (size limit), SI-10 (agent detector/resource deadlines; Chat Completions timeout gap remains) |
+| T9 DoS | SI-02 (size limit), SI-10 (agent detector/resource deadlines; Chat Completions deadline, rate limit and concurrency cap, without a hard stop for a GIL-holding detector) |
 | T10 Detector outage | SI-10 |
 | T11 Control-plane outage | SI-15 |
 | T12 Stale mappings | SI-03 (TTL is a supporting control, not the primary one) |

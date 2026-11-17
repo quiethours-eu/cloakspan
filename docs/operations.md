@@ -186,16 +186,20 @@ must print nothing:
 ```bash
 docker compose logs --no-log-prefix gateway \
   | jq -cR 'fromjson? | objects | select(has("schema_version"))
-      | select(.decision != "block" and .destination != "local")
+      | select(.provider != "none" and .destination != "local")
       | select((.policy_version | endswith("+local-routing:all"))
           or ((.policy_version | endswith("+local-routing:detected"))
               and (.entity_counts | length > 0)))'
 ```
 
-Blocked requests are excluded because a blocked event still carries a
-destination, usually the policy's `default_destination`, although nothing was
-sent and its `provider` is `none`. Requests that failed, for example because
-the local model was down, write no audit event and so do not appear at all.
+Events with `provider` `none` are excluded because nothing was handed to any
+provider's client: blocked requests, every request refused or failed before
+that, and a request whose destination failed its request-time egress check. A
+blocked event still carries a destination, usually the policy's
+`default_destination`, although nothing was sent. A request that failed after
+it was handed to a provider's client, for example because the local model was
+down, has an event naming that provider with an `error` reason code, so it
+appears here if that provider was not `local`.
 
 ### Latency is higher than expected
 
@@ -207,18 +211,166 @@ much larger, the time is in the provider call, not here.
 
 ## What to alert on
 
-| Signal | Threshold | Why |
-|---|---|---|
-| `CrossTenantAccessError` | **any** | Should be structurally impossible. Page |
-| `tokens_refused_by_reason.cross_tenant` | **any** | Same |
-| `tokens_refused_by_reason.key_unavailable` | any | A key in use was removed |
-| `tokens_refused_by_reason.not_minted` | sustained rate | Token probing |
-| `encoding_signals.suspicious_encoding_bidi` | sustained rate | Deliberate deception attempts |
-| HTTP 422 rate | step change | Usually a client upgrade meeting reject-unknown, not an attack |
-| `/readyz` non-200 | 2 consecutive | |
+Each signal is in the audit stream; those with a metric name are also on
+`GET /metrics` when it is enabled (see [Limits and metrics](#limits-and-metrics)).
+
+| Signal | Metric | Threshold | Why |
+|---|---|---|---|
+| `CrossTenantAccessError` | — | **any** | Should be structurally impossible. Page |
+| `tokens_refused_by_reason.cross_tenant` | `cloakspan_tokens_refused_total{reason="cross_tenant"}` | **any** | Same |
+| `tokens_refused_by_reason.key_unavailable` | `cloakspan_tokens_refused_total{reason="key_unavailable"}` | any | A key in use was removed |
+| `tokens_refused_by_reason.not_minted` | `cloakspan_tokens_refused_total{reason="not_minted"}` | sustained rate | Token probing |
+| `encoding_signals.suspicious_encoding_bidi` | `cloakspan_request_refusals_total{reason="suspicious_encoding_bidi"}` counts refused requests | sustained rate | Deliberate deception attempts |
+| HTTP 422 rate | `cloakspan_request_refusals_total` with `reason` `unknown_field`, `uninspectable_field`, `unsupported_role`, `invalid_message`, `inspection_failed` | step change | Usually a client upgrade meeting reject-unknown, not an attack |
+| `error` = `detector_timeout` | `cloakspan_request_refusals_total{reason="detector_timeout"}` | sustained rate | Inputs inspection cannot finish in time, or a saturated instance |
+| — | `cloakspan_detector_overruns_in_flight` | above zero for minutes | Detector threads still running after their request was refused; each holds a slot |
+| `error` = `capacity_exceeded` | `cloakspan_request_refusals_total{reason="capacity_exceeded"}` | sustained rate | The instance is full. Add instances, or find what holds slots |
+| `error` = `rate_limit_exceeded` | `cloakspan_request_refusals_total{reason="rate_limit_exceeded"}` | sustained rate | A key is over its allowance. The audit event names the key id |
+| `error` = `provider_timeout`, `provider_unavailable`, `provider_error`, `provider_bad_response` | `cloakspan_request_refusals_total{reason=...}` | step change | The upstream model is failing, not the gateway |
+| `error` = `egress_blocked`, `local_routing_violation` | `cloakspan_request_refusals_total{reason=...}` | **any** | A destination failed a request-time check. Nothing was sent |
+| `/readyz` non-200 | — | 2 consecutive | |
 
 Do **not** alert on `tokens_refused` in total. It spikes on every deploy, and an
 alert that cries wolf at each release is an alert that gets muted.
+
+---
+
+## Limits and metrics
+
+These apply to `POST /v1/chat/completions`. `/healthz`, `/readyz`, `/metrics`,
+`GET /v1/models` and `DELETE /v1/conversations/{id}` are not rate limited and
+do not count against capacity; leaving deletion unthrottled keeps the erasure
+runbook below usable under load. The experimental agent endpoints keep their
+own limits (`SAG_AGENT_*`, below).
+
+Checks run in this order: authentication, rate limit, concurrency cap, body
+size and body deadline, request contract, inspection, provider.
+
+| Limit | Setting | Refusal |
+|---|---|---|
+| Requests per minute per API key | `SAG_RATE_LIMIT_PER_MINUTE`, default `600`; `0` turns it off | 429 `rate_limit_exceeded`, `Retry-After` in whole seconds |
+| Requests in flight, all keys together | `SAG_MAX_CONCURRENT_REQUESTS`, default `64` | 503 `capacity_exceeded`, `Retry-After: 1`, immediately; nothing queues, and the key's rate-limit allowance is not spent |
+| Request body size | `SAG_MAX_REQUEST_BYTES`, default `1048576` | 413 `request_too_large` |
+| Request body arrival | `SAG_REQUEST_BODY_TIMEOUT_SECONDS`, default `15` | 408 `request_timeout` |
+| Inspection time | `SAG_DETECTOR_TIMEOUT_SECONDS`, default `15` | 503 `detector_timeout`, no `Retry-After`; nothing is forwarded |
+| Provider time, across retries | `SAG_REQUEST_TIMEOUT_SECONDS` | 504 `upstream_error` (audit reason `provider_timeout`) |
+
+What these are, plainly:
+
+- **Per process, single node.** The container runs one Uvicorn process. Two
+  replicas each allow the full rate and the full concurrency. Nothing is
+  shared, and every count resets on restart.
+- **The rate limit is per API key, not per client address.** Unauthenticated
+  requests are refused with 401 before the rate limit and are not themselves
+  rate limited. Each still writes an audit event, so a flood of bad keys is a
+  flood of audit lines. Rate-limit unauthenticated traffic at the reverse
+  proxy.
+- **The concurrency cap is global.** There is no per-key share: one key with
+  slow requests can hold every slot, each for up to the provider deadline, and
+  every other key then gets `capacity_exceeded`. A request refused for
+  capacity does not spend its key's rate-limit allowance.
+- **The rate limit is a token bucket** holding one minute's allowance, so an
+  idle key may send that many at once. The concurrency cap, not the rate limit,
+  bounds how many run together.
+- **A detector cannot be interrupted.** Inspection runs in a worker thread. On
+  timeout the request is refused and nothing is forwarded, but the thread runs
+  on until the detector returns and keeps its concurrency slot until then
+  (`cloakspan_detector_overruns_in_flight`). Resubmitting a pathological input
+  therefore fills the cap and then meets `capacity_exceeded`; it cannot start
+  an unbounded number of threads. The response carries no `Retry-After`,
+  because an immediate retry of the same input usually times out again. The
+  abandoned thread stores no vault mapping (see [limitations](limitations.md)
+  for the one narrow window where it can). Detector threads come from a dedicated pool
+  the size of the cap, separate from the pool used for egress checks and
+  restoration.
+- **The deadline cannot fire during a single call that holds the GIL.** One
+  catastrophic regular expression match stops the event loop as well, so the
+  timeout is noticed only when that match returns, and `/healthz` stalls with
+  it. Custom patterns remain trusted configuration; see
+  [limitations](limitations.md).
+
+### Metrics
+
+`GET /metrics` serves counters and gauges in the Prometheus text format. The
+route does not exist unless `SAG_METRICS_TOKEN` is set, and then it accepts
+only that token as a bearer credential, compared in constant time. It never
+consults the API key store, so a tenant key is never accepted, and startup
+fails if the token is also one of `SAG_API_KEYS`, shorter than 32 characters,
+or repetitive. It is served on the API port; scrape it from inside your
+network.
+
+```yaml
+scrape_configs:
+  - job_name: cloakspan
+    authorization:
+      credentials_file: /etc/prometheus/cloakspan-metrics-token
+    static_configs:
+      - targets: ["gateway:8080"]
+```
+
+| Metric | Type | Labels |
+|---|---|---|
+| `cloakspan_requests_total` | counter | `route`, `status_class`, `decision`, `destination` |
+| `cloakspan_request_refusals_total` | counter | `route`, `reason` (the audit reason codes below, plus `blocked_by_policy`) |
+| `cloakspan_tokens_restored_total` | counter | none |
+| `cloakspan_tokens_refused_total` | counter | `reason`: `not_minted`, `vault_miss`, `cross_tenant`, `key_unavailable` |
+| `cloakspan_requests_in_flight` | gauge | `route` |
+| `cloakspan_max_concurrent_requests` | gauge | `route` |
+| `cloakspan_detector_overruns_in_flight` | gauge | `route` |
+
+Every label value comes from a fixed list in `gateway/telemetry/metrics.py`;
+anything outside it is recorded as `other`. No tenant, key, model,
+conversation, path or prompt text is a label or a value. `destination` is one
+of `external`, `local`, `mock`, `none`, so a policy destination with another
+name is counted as `other`.
+
+### Audit reason codes
+
+Every Chat Completions request writes exactly one audit event before its
+response is returned. A refusal or failure sets `error` to one of these codes;
+a success and a policy block leave it `null`, as before. Events for requests
+refused before the request is validated use fixed placeholders: tenant
+`unauthenticated` and key `unknown` when authentication failed, conversation
+`anonymous`, model `client-model`, rule `request-refused`, decision `block`,
+provider `none`. They never contain the presented credential or an
+unvalidated header or field.
+
+| Code | HTTP | Meaning |
+|---|---|---|
+| `invalid_api_key` | 401 | No valid gateway key |
+| `rate_limit_exceeded` | 429 | Over `SAG_RATE_LIMIT_PER_MINUTE` |
+| `capacity_exceeded` | 503 | Over `SAG_MAX_CONCURRENT_REQUESTS` |
+| `reserved_conversation_scope` | 403 | Conversation id starts with `agent_` |
+| `request_too_large` | 413 | Over `SAG_MAX_REQUEST_BYTES` |
+| `request_timeout` | 408 | Body not received within `SAG_REQUEST_BODY_TIMEOUT_SECONDS` |
+| `invalid_json` | 400 | Body is not JSON |
+| `model_not_allowed` | 403 | Key not permitted to use the model |
+| `invalid_request`, `streaming_unsupported`, `unknown_field`, `uninspectable_field`, `unsupported_role`, `invalid_message` | 400/422 | Request contract refusals, equal to the response's `error.code` |
+| `inspection_failed` | 422 | Content could not be inspected, or a detector failed |
+| `detector_timeout` | 503 | Inspection exceeded `SAG_DETECTOR_TIMEOUT_SECONDS` |
+| `suspicious_encoding_*` | 422 | Deceptive encoding, as before |
+| `local_routing_violation` | 500 | The local-routing tripwire fired. Nothing was sent |
+| `vault_error` | 500 | The vault failed while transforming |
+| `destination_unavailable` | 500 | Policy chose a destination that is not configured |
+| `egress_blocked` | 502 | The destination failed its per-request egress check. Nothing was sent |
+| `provider_timeout` | 504 | Provider deadline elapsed |
+| `provider_unavailable` | 502 | Provider could not be reached |
+| `provider_error` | 4xx/502 | Provider returned an error status |
+| `provider_bad_response` | 502 | Provider response not JSON, not an object, too large, or not serialisable back to the client (a lone surrogate, a non-finite number) |
+| `restoration_refused` | 502 | Restored content would exceed its size limit |
+| `cancelled` | none sent | The client went away, including mid-body |
+| `internal_error` | 500 | Anything else |
+
+For the `provider_*` codes and `restoration_refused`, `provider` names the
+destination whose client the request was handed to. `cancelled` and
+`internal_error` name it only if the request had already been handed over.
+Every other code, `egress_blocked` included, has `provider` `none`: nothing
+was sent. The metrics
+`destination` label is set only for successful requests and is `none` for
+every refusal and failure. Provider failures keep `error.code` `upstream_error` in the HTTP
+response; the audit event and metrics carry the specific reason. Responses for
+paths and methods that do not exist (404, 405) are produced by the framework,
+never reach a handler, and write no audit event.
 
 ---
 
@@ -245,12 +397,19 @@ Listed rather than discovered:
   Signing, build provenance and required CI release checks remain pending.
 - **Upgrade and rollback have never been rehearsed** from a previous release
   candidate, which is required before GA.
-- **Chat Completions error paths write no audit event.** A 422 or a provider failure leaves no
-  record you can query.
-- **No rate limiting.** Request size is capped; request *rate* is not.
-- **Chat Completions detector timeouts are not implemented.** A pathological input can occupy a
-  worker until the client disconnects.
-- **No metrics endpoint.** Everything above is derived from the audit stream.
+- **Limits are per process.** The rate limit, concurrency cap and metrics are
+  not shared between replicas and reset on restart. There is no per-address or
+  unauthenticated rate limit; put one in the reverse proxy.
+- **A detector that holds the GIL cannot be timed out.** The Chat Completions
+  deadline is checked by the event loop, which a single catastrophic regular
+  expression match stops too. Such a match holds its slot, and `/healthz`,
+  until it returns. The experimental agent path runs detectors in a process
+  that is killed instead.
+- **The agent endpoints are outside the new limits and metrics.** They keep
+  `SAG_AGENT_MAX_CONCURRENT` and their own audit events, and have no rate
+  limit.
+- **Metrics have no history.** Counters live in process memory and reset on
+  restart; scrape them, or derive the same signals from the audit stream.
 
 ## Experimental agent deployment
 
@@ -280,8 +439,9 @@ chosen native protocol, with no fallback to an external provider.
 Existing input/body caps also apply. Detector isolation, request rejection,
 stream failure, restoration refusal and cancellation produce safe agent audit
 outcomes. Do not add prompts, mappings, raw private paths or tool arguments to
-logs/metrics. A stalled detector is terminated on the native paths; this does
-not change the legacy Chat Completions timeout/audit gaps above.
+logs/metrics. A stalled detector is terminated on the native paths; Chat
+Completions refuses on its own deadline but cannot terminate the thread (see
+[Limits and metrics](#limits-and-metrics)).
 
 Use stable session identities (`X-Session-Id`, `X-Conversation-Id`, public Codex
 `session-id`/`thread-id`, legacy `session_id` or native Claude `x-claude-code-session-id`) and
