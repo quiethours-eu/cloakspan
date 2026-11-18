@@ -17,9 +17,10 @@ the model's reply.
 **[Try it locally](#try-it-locally)** ·
 [Watch the terminal demo](#try-the-offline-demo) ·
 [Connect your app](#connect-a-client) ·
-[Changelog](CHANGELOG.md)
+[Releases](https://github.com/quiethours-eu/cloakspan/releases)
 
 [![CI](https://github.com/quiethours-eu/cloakspan/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/quiethours-eu/cloakspan/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/quiethours-eu/cloakspan?include_prereleases&label=release)](https://github.com/quiethours-eu/cloakspan/releases)
 [![Status: alpha](https://img.shields.io/badge/status-alpha-f59e0b)](#current-limits)
 [![Python 3.12 | 3.13 | 3.14](https://img.shields.io/badge/python-3.12%20%7C%203.13%20%7C%203.14-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2ea44f)](LICENSE)
@@ -72,7 +73,9 @@ shows restoration too. For another port or custom settings, see the
 [playground guide](docs/local-privacy-playground.md).
 
 This is an **alpha for local evaluation and synthetic-data pilots**. See the
-[current limits](#current-limits) before connecting a real workflow.
+[current limits](#current-limits) before connecting a real workflow. The first
+release is [v0.1.0-alpha.1](https://github.com/quiethours-eu/cloakspan/releases/tag/v0.1.0-alpha.1), with an installable
+package and a signed container image.
 
 ## Where it fits
 
@@ -384,7 +387,7 @@ provide the `cloakspan` command. See the [brand assets](docs/brand.md).
 | Inspect detection evidence | [Evaluation report](docs/evaluation-report.md) and [entity taxonomy](docs/entity-taxonomy.md) |
 | Contribute | [Contributing guide](CONTRIBUTING.md) and [roadmap](ROADMAP.md) |
 | Get help | [Support](SUPPORT.md), [issues](https://github.com/quiethours-eu/cloakspan/issues), and [discussions](https://github.com/quiethours-eu/cloakspan/discussions) |
-| See what changed | [Changelog](CHANGELOG.md) |
+| See what changed | [Releases](https://github.com/quiethours-eu/cloakspan/releases) and [changelog](CHANGELOG.md) |
 
 ## Local checks
 
