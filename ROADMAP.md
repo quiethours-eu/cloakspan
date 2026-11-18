@@ -3,9 +3,14 @@
 This is the public view. Detailed delivery planning and commercial material are
 maintained separately from the public repository.
 
-## Now: `v0.1.0-alpha.1`
+## Released: `v0.1.0-alpha.1`
 
-Ship an honest, self-hosted, single-node Community Edition release:
+Published on 17 November 2026. See the
+[release notes](docs/releases/v0.1.0-alpha.1.md) and the
+[staging rehearsal report](docs/releases/v0.1.0-alpha.1-staging.md).
+
+The alpha set out to ship an honest, self-hosted, single-node Community Edition
+release:
 
 1. align all public claims with implemented behavior;
 2. remove unsafe production defaults and mock fallbacks;
@@ -18,10 +23,19 @@ Ship an honest, self-hosted, single-node Community Edition release:
 8. prove install, upgrade, rollback, and failure behavior on a Hetzner staging
    VM.
 
+Two of these were only partly met and carry over to the beta:
+
+- **Item 5.** Only the deterministic detectors are measured. The optional NER
+  profile is not, because no NER model ships with the project; see the
+  [evaluation report](docs/evaluation-report.md).
+- **Item 8.** The rehearsal was one scripted run on a shared development VM
+  with a mock provider. It did not cover a host reboot, a Docker daemon
+  restart, or an upgrade that pulls the published image.
+
 The alpha remains explicitly not production-ready while independent security
 review is outstanding.
 
-## Next: public beta
+## Now: public beta
 
 Expand country and language coverage through community recognizers backed by
 published format specifications and synthetic evaluation cases. Prioritise
@@ -30,7 +44,10 @@ language before advertising support.
 
 Public beta requires a focused independent review with no critical/high finding
 open, two documentation-only installation tests by people outside development,
-two controlled pilots, and at least seven days of stable Hetzner staging.
+two controlled pilots, and at least seven days of stable Hetzner staging. It
+also requires the two items carried over from the alpha: a measured NER profile,
+and a rehearsal on a dedicated host that includes a reboot and the published
+image.
 
 ## Later: stable `v1.0.0`
 
